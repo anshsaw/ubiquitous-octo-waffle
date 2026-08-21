@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — PortfolioPilot AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <a href="../index.html" class="logo" style="display:block;text-align:center;margin-bottom:1.5rem;">PortfolioPilot AI</a>
+      <h1>Admin Login</h1>
+      <p class="subtitle">Sign in to the admin panel</p>
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input class="form-input" type="email" id="email" value="admin@portfoliopilot.ai" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input class="form-input" type="password" id="password" value="admin" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Login as Admin</button>
+      </form>
+      <p class="auth-footer">Demo: any credentials work</p>
+    </div>
+  </div>
+  <script src="../js/app.js"></script>
+  <script>
+    document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      localStorage.setItem('pp_admin', 'true');
+      window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

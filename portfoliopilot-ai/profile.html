@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile — PortfolioPilot AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand"><span>⚡</span> PortfolioPilot</div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="icon">🏠</span> Dashboard</a>
+        <a href="profile.html" class="nav-item" data-page="profile"><span class="icon">👤</span> Profile</a>
+        <a href="projects.html" class="nav-item" data-page="projects"><span class="icon">📁</span> My Projects</a>
+        <a href="analyzer.html" class="nav-item" data-page="analyzer"><span class="icon">🔍</span> Opportunity Analyzer</a>
+        <a href="match-analysis.html" class="nav-item" data-page="match"><span class="icon">📊</span> Match Analysis</a>
+        <a href="builder.html" class="nav-item" data-page="builder"><span class="icon">🛠️</span> Portfolio Builder</a>
+        <a href="preview.html" class="nav-item" data-page="preview"><span class="icon">👁️</span> Portfolio Preview</a>
+        <a href="portfolio.html" class="nav-item" data-page="public" target="_blank"><span class="icon">🌐</span> Published Site</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost btn-block" onclick="PP.logout()">Logout</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main-content">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div class="flex items-center gap-3">
+          <span class="text-sm">Hi, <strong id="userName">Alex</strong></span>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div class="flex justify-between items-center mb-4" style="flex-wrap:wrap;gap:1rem;">
+          <div>
+            <h1 class="page-title">Profile</h1>
+            <p class="page-subtitle" style="margin-bottom:0;">Keep your profile up to date for better matches</p>
+          </div>
+          <button class="btn btn-primary" id="saveBtn">Save Profile</button>
+        </div>
+
+        <div class="tabs" id="profileTabs">
+          <button class="tab active" data-tab="personal">Personal</button>
+          <button class="tab" data-tab="education">Education</button>
+          <button class="tab" data-tab="skills">Skills</button>
+          <button class="tab" data-tab="other">Other</button>
+        </div>
+
+        <!-- Personal -->
+        <div class="tab-panel active" id="panel-personal">
+          <div class="card">
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Avatar</label>
+                <div class="flex items-center gap-4">
+                  <div id="avatarPreview" style="width:64px;height:64px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;"></div>
+                  <input type="file" id="avatarInput" accept="image/*" class="form-input" style="max-width:280px;" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="name">Full name</label>
+                <input class="form-input" id="name" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="title">Professional title</label>
+                <input class="form-input" id="title" placeholder="e.g. Full-Stack Developer" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="bio">Bio</label>
+                <textarea class="form-textarea" id="bio" rows="4"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="location">Location</label>
+                <input class="form-input" id="location" placeholder="City, Country" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Education -->
+        <div class="tab-panel" id="panel-education">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Education</h2>
+              <button class="btn btn-sm btn-secondary" id="addEduBtn">+ Add</button>
+            </div>
+            <div class="card-body" id="eduList"></div>
+          </div>
+        </div>
+
+        <!-- Skills -->
+        <div class="tab-panel" id="panel-skills">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Skills</h2>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Add skill</label>
+                <div class="flex gap-2">
+                  <input class="form-input" id="newSkill" placeholder="e.g. React" style="flex:1;" />
+                  <input class="form-input" id="newSkillLevel" type="number" min="1" max="100" value="80" style="width:90px;" title="Proficiency %" />
+                  <button class="btn btn-primary" id="addSkillBtn">Add</button>
+                </div>
+              </div>
+              <div id="skillsList" class="flex" style="flex-wrap:wrap;gap:0.5rem;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other -->
+        <div class="tab-panel" id="panel-other">
+          <div class="card">
+            <div class="card-body">
+              <p class="text-sm" style="color:var(--slate-500);">Experience and certificates can be managed here in a full version. For this demo, experience is included in the mock data and used in resume generation.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    if (!PP.requireAuth()) throw new Error('redirect');
+    PP.initAppLayout('profile');
+
+    let profile = PP.getProfile();
+
+    // Tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Load personal
+    document.getElementById('name').value = profile.name || '';
+    document.getElementById('title').value = profile.title || '';
+    document.getElementById('bio').value = profile.bio || '';
+    document.getElementById('location').value = profile.location || '';
+    document.getElementById('avatarPreview').textContent = (profile.name || 'A').charAt(0).toUpperCase();
+
+    // Skills
+    function renderSkills() {
+      const list = document.getElementById('skillsList');
+      list.innerHTML = (profile.skills || []).map((s, i) => `
+        <span class="tag" style="padding:0.375rem 0.75rem;">
+          ${s.name} <span style="opacity:0.7;">${s.level}%</span>
+          <button onclick="removeSkill(${i})" style="background:none;border:none;cursor:pointer;margin-left:0.25rem;color:var(--slate-500);">×</button>
+        </span>
+      `).join('');
+    }
+    window.removeSkill = (i) => {
+      profile.skills.splice(i, 1);
+      renderSkills();
+    };
+    document.getElementById('addSkillBtn').addEventListener('click', () => {
+      const name = document.getElementById('newSkill').value.trim();
+      const level = parseInt(document.getElementById('newSkillLevel').value) || 80;
+      if (!name) return;
+      profile.skills = profile.skills || [];
+      profile.skills.push({ name, level });
+      document.getElementById('newSkill').value = '';
+      renderSkills();
+    });
+    renderSkills();
+
+    // Education
+    function renderEdu() {
+      const list = document.getElementById('eduList');
+      list.innerHTML = (profile.education || []).map((e, i) => `
+        <div class="flex justify-between items-center" style="padding:0.75rem 0;border-bottom:1px solid var(--slate-100);">
+          <div>
+            <div class="font-medium">${e.degree}</div>
+            <div class="text-sm" style="color:var(--slate-500);">${e.school} · ${e.year}</div>
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="removeEdu(${i})">Delete</button>
+        </div>
+      `).join('') || '<p style="color:var(--slate-500);">No education entries yet.</p>';
+    }
+    window.removeEdu = (i) => {
+      profile.education.splice(i, 1);
+      renderEdu();
+    };
+    document.getElementById('addEduBtn').addEventListener('click', () => {
+      const degree = prompt('Degree (e.g. B.S. Computer Science)');
+      if (!degree) return;
+      const school = prompt('School') || '';
+      const year = prompt('Year') || '';
+      profile.education = profile.education || [];
+      profile.education.push({ degree, school, year });
+      renderEdu();
+    });
+    renderEdu();
+
+    // Save
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      profile.name = document.getElementById('name').value.trim();
+      profile.title = document.getElementById('title').value.trim();
+      profile.bio = document.getElementById('bio').value.trim();
+      profile.location = document.getElementById('location').value.trim();
+      PP.saveProfile(profile);
+      PP.showToast('Profile saved', 'success');
+      document.getElementById('avatarPreview').textContent = (profile.name || 'A').charAt(0).toUpperCase();
+    });
+  </script>
+</body>
+</html>

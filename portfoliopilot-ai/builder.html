@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio Builder — PortfolioPilot AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand"><span>⚡</span> PortfolioPilot</div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="icon">🏠</span> Dashboard</a>
+        <a href="profile.html" class="nav-item" data-page="profile"><span class="icon">👤</span> Profile</a>
+        <a href="projects.html" class="nav-item" data-page="projects"><span class="icon">📁</span> My Projects</a>
+        <a href="analyzer.html" class="nav-item" data-page="analyzer"><span class="icon">🔍</span> Opportunity Analyzer</a>
+        <a href="match-analysis.html" class="nav-item" data-page="match"><span class="icon">📊</span> Match Analysis</a>
+        <a href="builder.html" class="nav-item" data-page="builder"><span class="icon">🛠️</span> Portfolio Builder</a>
+        <a href="preview.html" class="nav-item" data-page="preview"><span class="icon">👁️</span> Portfolio Preview</a>
+        <a href="portfolio.html" class="nav-item" data-page="public" target="_blank"><span class="icon">🌐</span> Published Site</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost btn-block" onclick="PP.logout()">Logout</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main-content">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div class="flex items-center gap-3">
+          <span class="text-sm">Hi, <strong id="userName">Alex</strong></span>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <h1 class="page-title">Portfolio Builder</h1>
+        <p class="page-subtitle">Choose a template and sections, then generate your portfolio</p>
+
+        <div class="grid-2">
+          <!-- Controls -->
+          <div>
+            <div class="card mb-6">
+              <div class="card-header">
+                <h2 class="card-title">Template</h2>
+              </div>
+              <div class="card-body">
+                <div class="template-grid" id="templateGrid">
+                  <div class="template-card selected" data-id="t1">
+                    <div class="preview">Minimal Pro</div>
+                    <div class="name">Minimal Pro</div>
+                  </div>
+                  <div class="template-card" data-id="t2">
+                    <div class="preview" style="background:linear-gradient(135deg,#4F46E5,#818CF8);color:white;">Modern</div>
+                    <div class="name">Modern Gradient</div>
+                  </div>
+                  <div class="template-card" data-id="t3">
+                    <div class="preview" style="background:#F1F5F9;">Classic ATS</div>
+                    <div class="name">Classic ATS</div>
+                  </div>
+                  <div class="template-card" data-id="t4">
+                    <div class="preview" style="background:#0F172A;color:#E2E8F0;">Creative Dark</div>
+                    <div class="name">Creative Dark</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card mb-6">
+              <div class="card-header">
+                <h2 class="card-title">Sections</h2>
+              </div>
+              <div class="card-body">
+                <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="about" checked /> About</label>
+                <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="skills" checked /> Skills</label>
+                <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="projects" checked /> Projects</label>
+                <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="education" checked /> Education</label>
+                <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="experience" checked /> Experience</label>
+                <label class="flex items-center gap-2" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="contact" checked /> Contact</label>
+              </div>
+            </div>
+
+            <a href="preview.html" class="btn btn-primary btn-lg btn-block">Generate Portfolio → Preview</a>
+          </div>
+
+          <!-- Live preview hint -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Live Preview</h2>
+            </div>
+            <div class="card-body" id="livePreview" style="min-height:320px;">
+              <!-- filled by JS -->
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    if (!PP.requireAuth()) throw new Error('redirect');
+    PP.initAppLayout('builder');
+
+    const profile = PP.getProfile();
+    let selected = PP.getSelectedTemplate();
+
+    // Template selection
+    document.querySelectorAll('.template-card').forEach(card => {
+      if (card.dataset.id === selected) card.classList.add('selected');
+      else card.classList.remove('selected');
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selected = card.dataset.id;
+        PP.setSelectedTemplate(selected);
+        updatePreview();
+      });
+    });
+
+    document.querySelectorAll('.section-toggle').forEach(cb => {
+      cb.addEventListener('change', updatePreview);
+    });
+
+    function updatePreview() {
+      const sections = Array.from(document.querySelectorAll('.section-toggle:checked')).map(c => c.value);
+      const match = PP.getLastMatch();
+      const recIds = match?.recommendedProjects || [];
+      const projects = (profile.projects || []).filter(p => p.includeInPortfolio || recIds.includes(p.id));
+
+      document.getElementById('livePreview').innerHTML = `
+        <div style="border:1px solid var(--slate-200);border-radius:0.5rem;padding:1.25rem;background:var(--slate-50);">
+          <div style="text-align:center;margin-bottom:1rem;">
+            <div style="width:56px;height:56px;border-radius:50%;background:var(--primary);color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.25rem;">
+              ${(profile.name || 'A').charAt(0)}
+            </div>
+            <div class="font-bold mt-2">${profile.name || 'Your Name'}</div>
+            <div class="text-sm" style="color:var(--primary);">${profile.title || 'Title'}</div>
+          </div>
+          ${sections.includes('about') ? `<p class="text-sm mb-3" style="color:var(--slate-600);">${(profile.bio || '').slice(0, 120)}...</p>` : ''}
+          ${sections.includes('skills') ? `
+            <div class="mb-3">
+              <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">SKILLS</div>
+              <div class="flex" style="flex-wrap:wrap;gap:0.25rem;">
+                ${(profile.skills || []).slice(0, 6).map(s => `<span class="tag">${s.name}</span>`).join('')}
+              </div>
+            </div>` : ''}
+          ${sections.includes('projects') ? `
+            <div>
+              <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">PROJECTS</div>
+              ${projects.slice(0, 2).map(p => `<div class="text-sm font-medium">${p.title}</div>`).join('') || '<div class="text-sm" style="color:var(--slate-400);">No projects</div>'}
+            </div>` : ''}
+          <div class="text-xs mt-4" style="color:var(--slate-400);">Template: ${selected} · Sections: ${sections.join(', ')}</div>
+        </div>
+      `;
+    }
+    updatePreview();
+  </script>
+</body>
+</html>

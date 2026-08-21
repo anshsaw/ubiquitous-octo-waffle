@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — PortfolioPilot AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span>⚡</span> PortfolioPilot
+      </div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="icon">🏠</span> Dashboard</a>
+        <a href="profile.html" class="nav-item" data-page="profile"><span class="icon">👤</span> Profile</a>
+        <a href="projects.html" class="nav-item" data-page="projects"><span class="icon">📁</span> My Projects</a>
+        <a href="analyzer.html" class="nav-item" data-page="analyzer"><span class="icon">🔍</span> Opportunity Analyzer</a>
+        <a href="match-analysis.html" class="nav-item" data-page="match"><span class="icon">📊</span> Match Analysis</a>
+        <a href="builder.html" class="nav-item" data-page="builder"><span class="icon">🛠️</span> Portfolio Builder</a>
+        <a href="preview.html" class="nav-item" data-page="preview"><span class="icon">👁️</span> Portfolio Preview</a>
+        <a href="portfolio.html" class="nav-item" data-page="public" target="_blank"><span class="icon">🌐</span> Published Site</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost btn-block" onclick="PP.logout()">Logout</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main-content">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="Menu">☰</button>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-slate-500">Hi, <strong id="userName">Alex</strong></span>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Your adaptive portfolio command center</p>
+
+        <!-- Stats -->
+        <div class="stats-grid mb-6" id="statsGrid">
+          <div class="stat-card">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="label">Profile Health</div>
+                <div class="value" id="statHealth">85%</div>
+              </div>
+              <div class="icon">💚</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="label">Total Projects</div>
+                <div class="value" id="statProjects">3</div>
+              </div>
+              <div class="icon">📁</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="label">Skills</div>
+                <div class="value" id="statSkills">6</div>
+              </div>
+              <div class="icon">⚡</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="label">Portfolios Published</div>
+                <div class="value">1</div>
+              </div>
+              <div class="icon">🌐</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Recent Analyses -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Recent Analyses</h2>
+              <a href="analyzer.html" class="btn btn-sm btn-primary">New Analysis</a>
+            </div>
+            <div class="card-body" id="recentList">
+              <!-- filled by JS -->
+            </div>
+          </div>
+
+          <!-- Quick CTA -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Quick Actions</h2>
+            </div>
+            <div class="card-body flex flex-col gap-3">
+              <a href="analyzer.html" class="btn btn-primary btn-block">🔍 Analyze New Opportunity</a>
+              <a href="profile.html" class="btn btn-secondary btn-block">✏️ Update Profile</a>
+              <a href="projects.html" class="btn btn-secondary btn-block">➕ Add Project</a>
+              <a href="builder.html" class="btn btn-secondary btn-block">🛠️ Build Portfolio</a>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    if (!PP.requireAuth()) throw new Error('redirect');
+    PP.initAppLayout('dashboard');
+
+    const profile = PP.getProfile();
+    document.getElementById('statProjects').textContent = profile.projects?.length || 0;
+    document.getElementById('statSkills').textContent = profile.skills?.length || 0;
+
+    // Profile health rough calc
+    let health = 40;
+    if (profile.bio) health += 15;
+    if (profile.skills?.length >= 4) health += 20;
+    if (profile.projects?.length >= 2) health += 15;
+    if (profile.education?.length) health += 10;
+    document.getElementById('statHealth').textContent = Math.min(100, health) + '%';
+
+    // Recent analyses from last match
+    const list = document.getElementById('recentList');
+    const last = PP.getLastMatch();
+    if (last) {
+      list.innerHTML = `
+        <a href="match-analysis.html" style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;border-bottom:1px solid var(--slate-100);text-decoration:none;color:inherit;">
+          <div>
+            <div class="font-medium">${last.jobTitle || 'Recent Job'}</div>
+            <div class="text-xs" style="color:var(--slate-500);">Analyzed recently</div>
+          </div>
+          <span class="badge ${last.matchScore >= 75 ? 'badge-success' : last.matchScore >= 50 ? 'badge-warning' : 'badge-danger'}">${last.matchScore}% match</span>
+        </a>
+        <p class="text-sm mt-4" style="color:var(--slate-500);">Click to view full match analysis →</p>
+      `;
+    } else {
+      list.innerHTML = `
+        <p style="color:var(--slate-500);font-size:0.9375rem;">No analyses yet. Paste a job description to get started.</p>
+        <a href="analyzer.html" class="btn btn-primary mt-4">Analyze First Opportunity</a>
+      `;
+    }
+  </script>
+</body>
+</html>

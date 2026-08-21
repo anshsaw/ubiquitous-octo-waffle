@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand"><span>⚡</span> Admin</div>
+      <nav class="sidebar-nav">
+        <a href="index.html" class="nav-item" data-page="dash"><span class="icon">📊</span> Dashboard</a>
+        <a href="users.html" class="nav-item" data-page="users"><span class="icon">👥</span> Users</a>
+        <a href="job-logs.html" class="nav-item" data-page="logs"><span class="icon">📋</span> Job Analyses Log</a>
+        <a href="templates.html" class="nav-item" data-page="templates"><span class="icon">🎨</span> Portfolio Templates</a>
+        <a href="reports.html" class="nav-item" data-page="reports"><span class="icon">📈</span> Reports</a>
+        <a href="settings.html" class="nav-item active" data-page="settings"><span class="icon">⚙️</span> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="../index.html" class="btn btn-ghost btn-block">← Back to App</a>
+        <button class="btn btn-ghost btn-block mt-2" onclick="localStorage.removeItem('pp_admin');location.href='login.html'">Logout</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="main-content">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div class="font-semibold">Settings</div>
+      </header>
+      <main class="page-content">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Platform configuration</p>
+        <div class="card" style="max-width:520px;">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Platform name</label>
+              <input class="form-input" value="PortfolioPilot AI" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Support email</label>
+              <input class="form-input" value="support@portfoliopilot.ai" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default match threshold (%)</label>
+              <input class="form-input" type="number" value="60" min="0" max="100" />
+            </div>
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="checkbox" checked />
+                <span>Allow public portfolio publishing</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="checkbox" checked />
+                <span>Enable resume PDF export</span>
+              </label>
+            </div>
+            <button class="btn btn-primary" onclick="PP.showToast('Settings saved (demo)', 'success')">Save Settings</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/app.js"></script>
+  <script>
+    if (localStorage.getItem('pp_admin') !== 'true') location.href = 'login.html';
+    PP.initAppLayout('settings');
+  </script>
+</body>
+</html>

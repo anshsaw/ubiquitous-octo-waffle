@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Analyses Log — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand"><span>⚡</span> Admin</div>
+      <nav class="sidebar-nav">
+        <a href="index.html" class="nav-item" data-page="dash"><span class="icon">📊</span> Dashboard</a>
+        <a href="users.html" class="nav-item" data-page="users"><span class="icon">👥</span> Users</a>
+        <a href="job-logs.html" class="nav-item active" data-page="logs"><span class="icon">📋</span> Job Analyses Log</a>
+        <a href="templates.html" class="nav-item" data-page="templates"><span class="icon">🎨</span> Portfolio Templates</a>
+        <a href="reports.html" class="nav-item" data-page="reports"><span class="icon">📈</span> Reports</a>
+        <a href="settings.html" class="nav-item" data-page="settings"><span class="icon">⚙️</span> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="../index.html" class="btn btn-ghost btn-block">← Back to App</a>
+        <button class="btn btn-ghost btn-block mt-2" onclick="localStorage.removeItem('pp_admin');location.href='login.html'">Logout</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="main-content">
+      <header class="topbar">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div class="font-semibold">Job Analyses Log</div>
+      </header>
+      <main class="page-content">
+        <h1 class="page-title">Job Analyses Log</h1>
+        <p class="page-subtitle">Recent job descriptions analyzed by users</p>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job Title</th>
+                  <th>Company</th>
+                  <th>Match Score</th>
+                  <th>Date</th>
+                  <th>User</th>
+                </tr>
+              </thead>
+              <tbody id="logsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/app.js"></script>
+  <script>
+    if (localStorage.getItem('pp_admin') !== 'true') location.href = 'login.html';
+    PP.initAppLayout('logs');
+    document.getElementById('logsBody').innerHTML = PP.mockJobLogs.map(j => `
+      <tr>
+        <td class="font-medium">${j.title}</td>
+        <td>${j.company}</td>
+        <td><span class="badge ${j.match >= 75 ? 'badge-success' : j.match >= 50 ? 'badge-warning' : 'badge-danger'}">${j.match}%</span></td>
+        <td>${j.date}</td>
+        <td>${j.user}</td>
+      </tr>
+    `).join('');
+  </script>
+</body>
+</html>
