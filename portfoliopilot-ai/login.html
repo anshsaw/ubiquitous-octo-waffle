@@ -17,11 +17,11 @@
       <form id="loginForm">
         <div class="form-group">
           <label class="form-label" for="email">Email</label>
-          <input class="form-input" type="email" id="email" name="email" placeholder="you@example.com" required value="alex@example.com" />
+          <input class="form-input" type="email" id="email" name="email" placeholder="you@example.com" required value="demo@portfoliopilot.local" />
         </div>
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
-          <input class="form-input" type="password" id="password" name="password" placeholder="••••••••" required value="password" />
+          <input class="form-input" type="password" id="password" name="password" placeholder="••••••••" required value="DemoPass123!" />
           <div class="form-hint" style="text-align:right;margin-top:0.5rem;">
             <a href="#" onclick="alert('Demo: password reset not implemented');return false;">Forgot password?</a>
           </div>
@@ -33,7 +33,8 @@
         New here? <a href="register.html">Create an account</a>
       </p>
       <p class="auth-footer" style="margin-top:0.75rem;font-size:0.8125rem;">
-        Demo: any email + any password works
+        Seeded demo account: <code>demo@portfoliopilot.local</code> / <code>DemoPass123!</code><br />
+        Requires the backend on :8080 and <code>cd mongodb &amp;&amp; npm run seed</code>.
       </p>
     </div>
   </div>

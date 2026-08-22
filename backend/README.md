@@ -39,6 +39,20 @@ Swagger UI: **http://localhost:8080/swagger-ui.html**
 > **`file://` will not work.** A page opened from disk sends `Origin: null` and every
 > CORS request fails. Serve the frontend over HTTP.
 
+### If login fails
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `Cannot reach the server` | Backend not running | Start it; the toast names the URL it tried |
+| Browser console: CORS / preflight 403 | Your origin is not allowed | Add your port to `FRONTEND_URL` (comma-separated). Setting it **replaces** the defaults |
+| `Invalid email or password` | Database not seeded, or wrong credentials | `cd mongodb && npm run seed` |
+| `This account has been suspended` | You used `rohan@portfoliopilot.local` | Seeded as SUSPENDED on purpose — use `demo@` |
+| Nothing happens at all | Page opened via `file://` | Serve over HTTP; the console logs a warning |
+
+`FRONTEND_URL` automatically also allows the loopback twin of whatever you set —
+`http://localhost:5500` implies `http://127.0.0.1:5500` — because browsers treat those as
+different origins and VS Code Live Server uses `127.0.0.1`.
+
 ---
 
 ## 2. Environment

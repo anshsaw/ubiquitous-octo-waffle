@@ -19,15 +19,27 @@
 
   // ---------------------------------------------------------------- config
 
+  /** Port the Spring Boot backend listens on during local development. */
+  const LOCAL_API_PORT = '8080';
+
   /**
    * Backend origin.
    *
    * Resolution order:
    *   1. window.PP_API_BASE          — set it in a <script> before this file
-   *   2. localStorage 'pp_api_base'  — handy for pointing a built page at a
-   *                                    different environment without a rebuild
-   *   3. same origin + /api          — when Spring Boot also serves the pages
-   *   4. http://localhost:8080/api   — the documented local default
+   *   2. localStorage 'pp_api_base'  — repoint a built page without a rebuild
+   *   3. page served BY the backend  — same origin
+   *   4. local static dev server     — same hostname, port 8080
+   *   5. deployed behind one domain  — same origin
+   *
+   * Step 4 preserves the HOSTNAME rather than forcing "localhost". A page on
+   * 127.0.0.1:5500 must call 127.0.0.1:8080, not localhost:8080 — those are
+   * different origins to the browser, and mixing them fails CORS.
+   *
+   * The previous version returned `origin + '/api'` for any port that was not
+   * 5500 or 3000, so serving on 8000 or 5173 made the client POST to the static
+   * file server instead of the API. That was the main reason login "did not
+   * work" on anything but Live Server.
    */
   function resolveBase() {
     if (window.PP_API_BASE) return window.PP_API_BASE;
@@ -35,11 +47,25 @@
     const stored = localStorage.getItem('pp_api_base');
     if (stored) return stored;
 
-    const origin = window.location.origin;
-    if (origin && origin.startsWith('http') && !origin.includes(':5500') && !origin.includes(':3000')) {
-      return origin + '/api';
+    const loc = window.location;
+
+    // Opened straight from disk: there is no usable origin, so an absolute URL
+    // is the only option. CORS will still reject it (Origin: null) - serve the
+    // pages over http:// instead.
+    if (loc.protocol === 'file:') {
+      console.warn('[PP] Page opened via file:// - CORS will block every API call. Serve it over http://');
+      return 'http://localhost:' + LOCAL_API_PORT + '/api';
     }
-    return 'http://localhost:8080/api';
+
+    if (loc.port === LOCAL_API_PORT) {
+      return loc.origin + '/api';
+    }
+
+    if (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1' || loc.hostname === '[::1]') {
+      return loc.protocol + '//' + loc.hostname + ':' + LOCAL_API_PORT + '/api';
+    }
+
+    return loc.origin + '/api';
   }
 
   const BASE = resolveBase();
