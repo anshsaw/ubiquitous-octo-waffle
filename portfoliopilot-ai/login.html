@@ -38,17 +38,32 @@
     </div>
   </div>
 
+  <script src="js/api.js"></script>
   <script src="js/app.js"></script>
   <script>
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
+    // Real authentication against the Spring Boot API.
+    // The password is actually verified now; the previous version accepted anything.
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const button = e.target.querySelector('button[type="submit"]');
       const email = document.getElementById('email').value.trim();
-      const profile = PP.getProfile();
-      if (email) profile.email = email;
-      PP.saveProfile(profile);
-      PP.setLoggedIn(true);
-      PP.showToast('Logged in successfully', 'success');
-      setTimeout(() => { window.location.href = 'dashboard.html'; }, 400);
+      const password = document.getElementById('password').value;
+
+      button.disabled = true;
+      button.textContent = 'Signing in...';
+
+      try {
+        // PP.login also warms the profile cache before we navigate, so the
+        // dashboard renders real data on its first synchronous read.
+        await PP.login(email, password);
+        PP.showToast('Logged in successfully', 'success');
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        PP.showToast(err.message || 'Login failed', 'error');
+        button.disabled = false;
+        button.textContent = 'Login';
+      }
     });
   </script>
 </body>

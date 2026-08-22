@@ -27,12 +27,34 @@
       <p class="auth-footer">Demo: any credentials work</p>
     </div>
   </div>
+  <script src="../js/api.js"></script>
   <script src="../js/app.js"></script>
   <script>
-    document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+    // Real admin authentication. The previous version set a localStorage flag
+    // without reading the form at all - anyone could reach the admin panel.
+    //
+    // The ROLE is verified by the server on every admin request; the flag below
+    // is only a UI hint. Setting it by hand grants nothing: /api/admin/** still
+    // returns 403 without an ADMIN token.
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      localStorage.setItem('pp_admin', 'true');
-      window.location.href = 'index.html';
+
+      const button = e.target.querySelector('button[type="submit"]');
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      button.disabled = true;
+      button.textContent = 'Signing in...';
+
+      try {
+        await PP.admin.login(email, password);
+        PP.showToast('Signed in as administrator', 'success');
+        window.location.href = 'index.html';
+      } catch (err) {
+        PP.showToast(err.message || 'Admin login failed', 'error');
+        button.disabled = false;
+        button.textContent = 'Login as Admin';
+      }
     });
   </script>
 </body>
