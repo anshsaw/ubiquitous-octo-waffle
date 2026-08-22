@@ -1,0 +1,162 @@
+{
+  "collection": "resumes",
+  "description": "A generated, job-targeted resume. Every resume MUST reference the jobAnalysis it was produced from, which answers the key product question: 'which job was this resume created for?'. A resume is a DELIVERED ARTIFACT: education/experience/certificates are snapshotted so an already-downloaded PDF can always be reproduced byte-identically, even after the profile changes.",
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "title": "resumes",
+      "required": ["userId", "jobAnalysisId", "targetRole", "summary", "skills", "projects", "education", "experience", "certificates", "template", "deleted", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "_class": { "bsonType": "string" },
+
+        "userId": { "bsonType": "objectId", "description": "REFERENCE -> users._id. Ownership guard." },
+        "jobAnalysisId": {
+          "bsonType": "objectId",
+          "description": "REFERENCE -> jobAnalyses._id. MANDATORY. This is the link that makes the resume 'tailored' rather than generic."
+        },
+
+        "targetRole": {
+          "bsonType": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Snapshot of job.title at generation time."
+        },
+        "targetCompany": { "bsonType": ["string", "null"], "maxLength": 160 },
+
+        "summary": {
+          "bsonType": "string",
+          "maxLength": 1200,
+          "description": "The auto-written summary line, reflecting THIS role."
+        },
+
+        "skills": {
+          "bsonType": "array",
+          "maxItems": 100,
+          "description": "SNAPSHOT, re-ordered for this job: matched skills first. Array order IS the render order - do not sort at read time.",
+          "items": {
+            "bsonType": "object",
+            "required": ["name", "normalizedName"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "bsonType": "string", "minLength": 1, "maxLength": 60 },
+              "normalizedName": { "bsonType": "string", "minLength": 1, "maxLength": 60 },
+              "proficiency": { "enum": ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT", null] },
+              "matched": {
+                "bsonType": "bool",
+                "description": "true = this skill was explicitly demanded by the job description. Lets the ATS template bold or front-load it."
+              }
+            }
+          }
+        },
+
+        "projects": {
+          "bsonType": "array",
+          "maxItems": 20,
+          "description": "REFERENCES + explicit priority. The project body (description, achievements) is read live from `projects` at render time so edits propagate; only ordering and the title fallback are frozen here.",
+          "items": {
+            "bsonType": "object",
+            "required": ["projectId", "priority"],
+            "additionalProperties": false,
+            "properties": {
+              "projectId": { "bsonType": "objectId", "description": "REFERENCE -> projects._id." },
+              "priority": {
+                "bsonType": "int",
+                "minimum": 1,
+                "maximum": 100,
+                "description": "1 = most relevant, printed first."
+              },
+              "titleSnapshot": { "bsonType": ["string", "null"], "maxLength": 160 },
+              "highlightedBullets": {
+                "bsonType": "array",
+                "maxItems": 8,
+                "description": "The subset of features/achievements selected for THIS job. Empty = render the project defaults.",
+                "items": { "bsonType": "string", "minLength": 1, "maxLength": 400 }
+              }
+            }
+          }
+        },
+
+        "education": {
+          "bsonType": "array",
+          "maxItems": 30,
+          "description": "SNAPSHOT copied from profiles.education. Frozen on purpose - a resume already sent to an employer must never mutate.",
+          "items": {
+            "bsonType": "object",
+            "required": ["degree", "institution"],
+            "additionalProperties": false,
+            "properties": {
+              "degree": { "bsonType": "string", "minLength": 1, "maxLength": 160 },
+              "institution": { "bsonType": "string", "minLength": 1, "maxLength": 160 },
+              "fieldOfStudy": { "bsonType": ["string", "null"], "maxLength": 160 },
+              "startYear": { "bsonType": ["int", "null"], "minimum": 1950, "maximum": 2100 },
+              "endYear": { "bsonType": ["int", "null"], "minimum": 1950, "maximum": 2100 },
+              "grade": { "bsonType": ["string", "null"], "maxLength": 40 }
+            }
+          }
+        },
+
+        "experience": {
+          "bsonType": "array",
+          "maxItems": 40,
+          "description": "SNAPSHOT copied from profiles.experience, re-ordered for relevance.",
+          "items": {
+            "bsonType": "object",
+            "required": ["company", "role"],
+            "additionalProperties": false,
+            "properties": {
+              "company": { "bsonType": "string", "minLength": 1, "maxLength": 160 },
+              "role": { "bsonType": "string", "minLength": 1, "maxLength": 160 },
+              "employmentType": { "enum": ["INTERNSHIP", "FULL_TIME", "PART_TIME", "FREELANCE", "PROJECT", null] },
+              "startDate": { "bsonType": ["date", "null"] },
+              "endDate": { "bsonType": ["date", "null"] },
+              "bullets": {
+                "bsonType": "array",
+                "maxItems": 12,
+                "items": { "bsonType": "string", "minLength": 1, "maxLength": 400 }
+              }
+            }
+          }
+        },
+
+        "certificates": {
+          "bsonType": "array",
+          "maxItems": 50,
+          "description": "SNAPSHOT copied from profiles.certificates.",
+          "items": {
+            "bsonType": "object",
+            "required": ["name", "issuingOrganization"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "bsonType": "string", "minLength": 1, "maxLength": 200 },
+              "issuingOrganization": { "bsonType": "string", "minLength": 1, "maxLength": 160 },
+              "issueDate": { "bsonType": ["date", "null"] },
+              "credentialUrl": { "bsonType": ["string", "null"], "maxLength": 2048 }
+            }
+          }
+        },
+
+        "template": {
+          "enum": ["ATS_CLASSIC", "ATS_COMPACT", "ATS_MODERN"],
+          "description": "Single-column, parser-safe layouts only. Resume templates are an enum, NOT a reference to portfolioTemplates - the two render pipelines are unrelated."
+        },
+
+        "pdfUrl": {
+          "bsonType": ["string", "null"],
+          "maxLength": 2048,
+          "description": "Object-storage URL of the last rendered PDF. The binary is NEVER stored in MongoDB."
+        },
+        "downloadCount": { "bsonType": "int", "minimum": 0 },
+
+        "deleted": { "bsonType": "bool" },
+        "deletedAt": { "bsonType": ["date", "null"] },
+
+        "createdAt": { "bsonType": "date" },
+        "updatedAt": { "bsonType": "date" }
+      }
+    }
+  }
+}

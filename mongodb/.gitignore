@@ -1,0 +1,15 @@
+# Secrets - never commit real connection strings or credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies
+node_modules/
+
+# Tooling / dump output
+npm-debug.log*
+dump/
+*.bson
+*.archive

@@ -1,0 +1,93 @@
+{
+  "collection": "projects",
+  "description": "SEPARATE COLLECTION (not embedded in profiles). Reasons: (1) unbounded growth - a profile document must not grow toward the 16MB limit; (2) projects are queried, paginated, edited and deleted independently on /projects; (3) they are REFERENCED by jobAnalyses.recommendedProjects, resumes.projects and portfolios.orderedProjects - embedding would force N-way duplication.",
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "title": "projects",
+      "required": ["userId", "title", "description", "techStack", "techStackNormalized", "featured", "includeInPortfolio", "deleted", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "_class": { "bsonType": "string" },
+
+        "userId": {
+          "bsonType": "objectId",
+          "description": "REFERENCE -> users._id. MANDATORY. Every backend query must filter on it so a user can never read or mutate another user's project (IDOR prevention)."
+        },
+
+        "title": { "bsonType": "string", "minLength": 1, "maxLength": 160 },
+        "description": { "bsonType": "string", "minLength": 1, "maxLength": 5000 },
+
+        "techStack": {
+          "bsonType": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "uniqueItems": true,
+          "description": "Display values, e.g. ['React', 'TypeScript', 'Tailwind CSS'].",
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+        },
+        "techStackNormalized": {
+          "bsonType": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "uniqueItems": true,
+          "description": "DERIVED via lib/normalize.js. This is what generateMatch() intersects with the job description's extracted skills, and what powers 'most requested skills' analytics. Rebuild on every write.",
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+        },
+
+        "repositoryUrl": { "bsonType": ["string", "null"], "maxLength": 2048 },
+        "liveDemoUrl": { "bsonType": ["string", "null"], "maxLength": 2048 },
+        "imageUrl": {
+          "bsonType": ["string", "null"],
+          "maxLength": 2048,
+          "description": "Primary thumbnail. Object-storage URL, never binary."
+        },
+        "images": {
+          "bsonType": "array",
+          "maxItems": 10,
+          "description": "Additional gallery URLs shown on the public portfolio.",
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 2048 }
+        },
+
+        "role": {
+          "bsonType": ["string", "null"],
+          "maxLength": 120,
+          "description": "The user's role on the project, e.g. 'Full-stack developer'. Feeds the tailored resume bullet."
+        },
+
+        "features": {
+          "bsonType": "array",
+          "maxItems": 20,
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 400 }
+        },
+        "achievements": {
+          "bsonType": "array",
+          "maxItems": 20,
+          "description": "Quantified outcomes. These become the resume bullet points.",
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 400 }
+        },
+
+        "startDate": { "bsonType": ["date", "null"] },
+        "endDate": { "bsonType": ["date", "null"], "description": "null = ongoing." },
+
+        "featured": {
+          "bsonType": "bool",
+          "description": "User-pinned. Sorts first on the public portfolio when no job-specific ordering applies."
+        },
+        "includeInPortfolio": {
+          "bsonType": "bool",
+          "description": "The /projects checkbox. false = private, excluded from every generated portfolio and public view."
+        },
+
+        "deleted": { "bsonType": "bool", "description": "Soft delete. Keeps historical resumes and analyses referentially meaningful." },
+        "deletedAt": { "bsonType": ["date", "null"] },
+
+        "createdAt": { "bsonType": "date" },
+        "updatedAt": { "bsonType": "date" }
+      }
+    }
+  }
+}

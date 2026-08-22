@@ -1,0 +1,56 @@
+{
+  "collection": "adminLogs",
+  "description": "OPTIONAL BUT JUSTIFIED. Append-only audit trail for privileged actions. The admin panel can suspend and delete users, so there must be an immutable record of who did what to whom. Write-once, read-rarely - kept out of every hot path. A capped TTL (see indexes) bounds growth.",
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "title": "adminLogs",
+      "required": ["adminId", "action", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "_class": { "bsonType": "string" },
+
+        "adminId": { "bsonType": "objectId", "description": "REFERENCE -> users._id (role must be ADMIN)." },
+        "adminEmail": {
+          "bsonType": ["string", "null"],
+          "maxLength": 254,
+          "description": "DENORMALISED snapshot. An audit log must stay readable even if the admin account is later purged."
+        },
+
+        "action": {
+          "enum": [
+            "ADMIN_LOGIN",
+            "SUSPEND_USER",
+            "ACTIVATE_USER",
+            "SOFT_DELETE_USER",
+            "RESTORE_USER",
+            "PURGE_USER",
+            "CREATE_TEMPLATE",
+            "UPDATE_TEMPLATE",
+            "DEACTIVATE_TEMPLATE",
+            "DELETE_TEMPLATE",
+            "UNPUBLISH_PORTFOLIO",
+            "VIEW_USER_DETAIL"
+          ]
+        },
+
+        "targetUserId": { "bsonType": ["objectId", "null"], "description": "REFERENCE -> users._id, when the action targets a user." },
+        "targetCollection": { "bsonType": ["string", "null"], "maxLength": 60 },
+        "targetId": { "bsonType": ["objectId", "null"], "description": "Generic target id for non-user targets (template, portfolio, ...)." },
+
+        "metadata": {
+          "bsonType": ["object", "null"],
+          "description": "Free-form context (reason, before/after values). Intentionally schemaless - audit payloads differ per action. Must never contain passwords, hashes or tokens."
+        },
+
+        "ipAddress": { "bsonType": ["string", "null"], "maxLength": 64 },
+        "userAgent": { "bsonType": ["string", "null"], "maxLength": 512 },
+
+        "createdAt": { "bsonType": "date", "description": "Immutable. There is no updatedAt: audit rows are never edited." }
+      }
+    }
+  }
+}
