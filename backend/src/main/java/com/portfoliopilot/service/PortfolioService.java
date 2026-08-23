@@ -180,8 +180,23 @@ public class PortfolioService {
 
         if (request.templateId() != null || request.templateKey() != null) {
             PortfolioTemplate template = templateService.resolve(request.templateId(), request.templateKey());
+            boolean templateChanged = !template.getId().equals(portfolio.getTemplateId());
+
             portfolio.setTemplateId(template.getId());
             portfolio.setTemplateKey(template.getTemplateKey());
+
+            // Switching template must also adopt that template's colours,
+            // unless the caller is explicitly setting their own in this same
+            // request. Without this the key changed but the theme stayed on the
+            // PREVIOUS template, so the public page rendered the new layout in
+            // the old palette - the template appeared not to apply.
+            boolean explicitTheme = request.primaryColor() != null
+                    || request.accentColor() != null
+                    || request.darkMode() != null;
+
+            if (templateChanged && !explicitTheme) {
+                portfolio.setTheme(themeFrom(template));
+            }
         }
         if (request.name() != null && !request.name().isBlank()) {
             portfolio.setName(request.name().trim());

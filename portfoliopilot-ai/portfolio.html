@@ -82,53 +82,130 @@
   <script src="js/api.js"></script>
   <script src="js/app.js"></script>
   <script>
-    // Public page — no auth required
-    const profile = PP.getProfile();
-    const match = PP.getLastMatch();
-    const recIds = match?.recommendedProjects || [];
+    /*
+     * PUBLIC PAGE — no auth required.
+     *
+     * Reads the published portfolio from GET /api/public/portfolio/{username}.
+     * Previously this rendered the current browser's localStorage, which meant
+     * the page was not actually shareable and never reflected the template
+     * chosen in the builder.
+     *
+     * Username resolution: ?u=<username> in the URL, else the signed-in user's
+     * own published portfolio (so "preview mine" still works).
+     */
+    const esc = (v) => String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-    document.getElementById('navName').textContent = profile.name || 'Portfolio';
-    document.getElementById('avatar').textContent = (profile.name || 'A').charAt(0).toUpperCase();
-    document.getElementById('name').textContent = profile.name || 'Your Name';
-    document.getElementById('title').textContent = profile.title || 'Developer';
-    document.getElementById('bio').textContent = profile.bio || '';
-    document.getElementById('location').textContent = profile.location || '';
-    document.getElementById('contactEmail').textContent = profile.email || '';
-    document.getElementById('emailBtn').href = 'mailto:' + (profile.email || '');
+    const safeUrl = (u) => {
+      // Only http(s) links are rendered — blocks javascript: in a stored field.
+      if (!u) return null;
+      try {
+        const parsed = new URL(u, window.location.href);
+        return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : null;
+      } catch (e) { return null; }
+    };
 
-    document.getElementById('skillsCloud').innerHTML =
-      (profile.skills || []).map(s => `<span class="skill-pill">${s.name}</span>`).join('') ||
-      '<span style="color:var(--slate-400);">No skills listed</span>';
+    function show(id, visible) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = visible ? '' : 'none';
+    }
 
-    let projects = (profile.projects || []).filter(p => p.includeInPortfolio || recIds.includes(p.id));
-    projects.sort((a, b) => (recIds.includes(a.id) ? 0 : 1) - (recIds.includes(b.id) ? 0 : 1));
+    /** Applies the chosen template: a body class plus its real theme colours. */
+    function applyTemplate(data) {
+      const key = data.templateKey || 'MODERN_DEV';
+      document.body.classList.add('tpl-' + key.toLowerCase().replace(/_/g, '-'));
+      document.body.dataset.template = key;
 
-    document.getElementById('projectsGrid').innerHTML = projects.length
-      ? projects.map(p => `
-          <div class="project-card">
-            <div class="card-body">
-              <h3>${p.title}</h3>
-              <p>${p.description || ''}</p>
-              <div class="tech-tags">${(p.tech || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
-              <div class="flex gap-2 mt-2">
-                ${p.live ? `<a href="${p.live}" target="_blank" class="btn btn-sm btn-primary">Live Demo</a>` : ''}
-                ${p.repo ? `<a href="${p.repo}" target="_blank" class="btn btn-sm btn-secondary">Code</a>` : ''}
+      const theme = data.theme || {};
+      const root = document.documentElement;
+      if (theme.primaryColor) root.style.setProperty('--primary', theme.primaryColor);
+      if (theme.accentColor) root.style.setProperty('--success', theme.accentColor);
+      if (theme.darkMode) document.body.classList.add('tpl-dark');
+    }
+
+    async function render() {
+      const username = new URLSearchParams(window.location.search).get('u');
+      let data;
+
+      try {
+        if (username) {
+          data = await PPApi.portfolio.public(username);
+        } else {
+          const mine = await PP.portfolios.published();
+          if (!mine) throw new Error('You have not published a portfolio yet. Open the Builder first.');
+          data = await PPApi.portfolio.public(mine.username);
+        }
+      } catch (err) {
+        document.body.innerHTML =
+          '<div style="max-width:640px;margin:6rem auto;text-align:center;font-family:Inter,sans-serif;">'
+          + '<h1 style="font-size:1.5rem;margin-bottom:0.75rem;">Portfolio not available</h1>'
+          + '<p style="color:#64748B;">' + esc(err.message) + '</p></div>';
+        return;
+      }
+
+      applyTemplate(data);
+
+      const owner = data.owner || {};
+      const sections = data.sections || {};
+
+      document.getElementById('navName').textContent = owner.fullName || 'Portfolio';
+      document.getElementById('avatar').textContent = (owner.fullName || 'A').charAt(0).toUpperCase();
+      document.getElementById('name').textContent = owner.fullName || '';
+      document.getElementById('title').textContent = owner.professionalTitle || '';
+      document.getElementById('bio').textContent = owner.bio || '';
+      document.getElementById('location').textContent = owner.location || '';
+
+      // Only the address the owner chose to publish — never the account email.
+      const publicEmail = owner.publicEmail || '';
+      document.getElementById('contactEmail').textContent = publicEmail || 'Not published';
+      document.getElementById('emailBtn').href = publicEmail ? 'mailto:' + publicEmail : '#';
+
+      // Sections the owner switched off come back empty from the API; hide them
+      // so the page has no stranded headings.
+      show('skills', sections.skills !== false);
+      show('projects', sections.projects !== false);
+      show('education', sections.education !== false);
+      show('contact', sections.contact !== false);
+
+      document.getElementById('skillsCloud').innerHTML =
+        (data.skills || []).map(s => `<span class="skill-pill">${esc(s.name)}</span>`).join('') ||
+        '<span style="color:var(--slate-400);">No skills listed</span>';
+
+      // Already ordered by the server: job-relevant projects first.
+      document.getElementById('projectsGrid').innerHTML = (data.projects || []).length
+        ? data.projects.map(p => {
+            const live = safeUrl(p.liveDemoUrl);
+            const repo = safeUrl(p.repositoryUrl);
+            return `
+            <div class="project-card">
+              <div class="card-body">
+                <h3>${esc(p.title)}</h3>
+                <p>${esc(p.description || '')}</p>
+                <div class="tech-tags">${(p.techStack || []).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+                <div class="flex gap-2 mt-2">
+                  ${live ? `<a href="${esc(live)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary">Live Demo</a>` : ''}
+                  ${repo ? `<a href="${esc(repo)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary">Code</a>` : ''}
+                </div>
               </div>
-            </div>
-          </div>
-        `).join('')
-      : '<p style="text-align:center;color:var(--slate-500);grid-column:1/-1;">No featured projects yet.</p>';
+            </div>`;
+          }).join('')
+        : '<p style="text-align:center;color:var(--slate-500);grid-column:1/-1;">No featured projects yet.</p>';
 
-    document.getElementById('eduList').innerHTML =
-      (profile.education || []).map(e => `
-        <div style="margin-bottom:1rem;">
-          <div class="font-semibold">${e.degree}</div>
-          <div style="color:var(--slate-500);">${e.school} · ${e.year}</div>
-        </div>
-      `).join('') || '<p style="color:var(--slate-500);">No education listed.</p>';
+      document.getElementById('eduList').innerHTML =
+        (data.education || []).map(e => {
+          const years = [e.startYear, e.endYear].filter(Boolean).join(' - ');
+          return `
+          <div style="margin-bottom:1rem;">
+            <div class="font-semibold">${esc(e.degree)}</div>
+            <div style="color:var(--slate-500);">${esc(e.institution)}${years ? ' · ' + esc(years) : ''}</div>
+          </div>`;
+        }).join('') || '<p style="color:var(--slate-500);">No education listed.</p>';
 
-    // Update page title
-    document.title = (profile.name || 'Portfolio') + ' — PortfolioPilot AI';
+      document.title = (owner.fullName || 'Portfolio') + ' — PortfolioPilot AI';
+    }
+
+    render();
   </script>
 </body>
 </html>

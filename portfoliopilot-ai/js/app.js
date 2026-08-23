@@ -527,6 +527,17 @@
       setInclusion: (id, include) => api.projects.setInclusion(id, include),
     },
 
+    // portfolios — the builder needs read/update/publish, not just generate
+    portfolios: {
+      list: () => api.portfolio.list(),
+      get: (id) => api.portfolio.get(id),
+      published: () => api.portfolio.published(),
+      update: (id, payload) => api.portfolio.update(id, payload),
+      publish: (id) => api.portfolio.publish(id),
+      unpublish: (id) => api.portfolio.unpublish(id),
+      public: (username) => api.portfolio.public(username),
+    },
+
     // admin (promise-based; the old hardcoded arrays are gone)
     admin,
 

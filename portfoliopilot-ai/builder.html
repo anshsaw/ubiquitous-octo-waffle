@@ -47,23 +47,10 @@
                 <h2 class="card-title">Template</h2>
               </div>
               <div class="card-body">
+                <!-- Populated from GET /api/templates. The ids used to be
+                     hardcoded t1-t4, which matched nothing in the database. -->
                 <div class="template-grid" id="templateGrid">
-                  <div class="template-card selected" data-id="t1">
-                    <div class="preview">Minimal Pro</div>
-                    <div class="name">Minimal Pro</div>
-                  </div>
-                  <div class="template-card" data-id="t2">
-                    <div class="preview" style="background:linear-gradient(135deg,#4F46E5,#818CF8);color:white;">Modern</div>
-                    <div class="name">Modern Gradient</div>
-                  </div>
-                  <div class="template-card" data-id="t3">
-                    <div class="preview" style="background:#F1F5F9;">Classic ATS</div>
-                    <div class="name">Classic ATS</div>
-                  </div>
-                  <div class="template-card" data-id="t4">
-                    <div class="preview" style="background:#0F172A;color:#E2E8F0;">Creative Dark</div>
-                    <div class="name">Creative Dark</div>
-                  </div>
+                  <div class="text-sm" style="color:var(--slate-400);">Loading templates...</div>
                 </div>
               </div>
             </div>
@@ -78,11 +65,14 @@
                 <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="projects" checked /> Projects</label>
                 <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="education" checked /> Education</label>
                 <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="experience" checked /> Experience</label>
+                <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="certificates" /> Certificates</label>
                 <label class="flex items-center gap-2" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="contact" checked /> Contact</label>
+                <p class="form-hint mt-3" id="sectionHint" style="font-size:0.8125rem;"></p>
               </div>
             </div>
 
-            <a href="preview.html" class="btn btn-primary btn-lg btn-block">Generate Portfolio → Preview</a>
+            <button id="generateBtn" class="btn btn-primary btn-lg btn-block">Generate &amp; Publish Portfolio</button>
+            <p class="form-hint mt-2" id="publishResult" style="font-size:0.8125rem;text-align:center;"></p>
           </div>
 
           <!-- Live preview hint -->
@@ -106,23 +96,130 @@
     PP.initAppLayout('builder');
 
     const profile = PP.getProfile();
-    let selected = PP.getSelectedTemplate();
 
-    // Template selection
-    document.querySelectorAll('.template-card').forEach(card => {
-      if (card.dataset.id === selected) card.classList.add('selected');
-      else card.classList.remove('selected');
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selected = card.dataset.id;
-        PP.setSelectedTemplate(selected);
-        updatePreview();
+    // Real templates loaded from GET /api/templates. The old hardcoded t1-t4
+    // ids matched nothing in the database, so the choice could never be saved.
+    let templates = [];
+    let selectedKey = null;
+
+    const esc = (v) => String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    const currentTemplate = () => templates.find(t => t.templateKey === selectedKey) || null;
+
+    async function loadTemplates() {
+      const grid = document.getElementById('templateGrid');
+      try {
+        templates = await PP.listTemplates();
+      } catch (err) {
+        grid.innerHTML = '<div class="text-sm" style="color:var(--danger);">Could not load templates: '
+          + esc(err.message) + '</div>';
+        return;
+      }
+      if (!templates.length) {
+        grid.innerHTML = '<div class="text-sm" style="color:var(--slate-500);">No active templates. Seed the database.</div>';
+        return;
+      }
+
+      // Preselect whatever the user's existing portfolio already uses, so the
+      // builder opens showing their real current state rather than a default.
+      let existing = null;
+      try { existing = await PP.portfolios.published(); } catch (e) { /* none yet */ }
+      selectedKey = (existing && existing.templateKey)
+        || PP.getSelectedTemplate()
+        || templates[0].templateKey;
+      if (!templates.some(t => t.templateKey === selectedKey)) {
+        selectedKey = templates[0].templateKey;
+      }
+
+      grid.innerHTML = templates.map(t => `
+        <div class="template-card${t.templateKey === selectedKey ? ' selected' : ''}" data-key="${esc(t.templateKey)}">
+          <div class="preview" style="background:${esc(t.primaryColor || '#F1F5F9')};color:${t.darkMode || t.primaryColor ? '#fff' : 'var(--slate-700)'};">${esc(t.name)}</div>
+          <div class="name">${esc(t.name)}</div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.template-card').forEach(card => {
+        card.addEventListener('click', () => {
+          grid.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedKey = card.dataset.key;
+          PP.setSelectedTemplate(selectedKey);
+          applyTemplateConstraints();
+          updatePreview();
+        });
       });
-    });
+
+      applyTemplateConstraints();
+      updatePreview();
+    }
+
+    /**
+     * A template can only render the sections it declares in availableSections.
+     * The backend rejects anything else with a 400, so the unsupported toggles
+     * are disabled here rather than letting the user hit an error on publish.
+     */
+    function applyTemplateConstraints() {
+      const tpl = currentTemplate();
+      const available = (tpl && tpl.availableSections) || [];
+      const unsupported = [];
+
+      document.querySelectorAll('.section-toggle').forEach(cb => {
+        const ok = available.includes(cb.value);
+        cb.disabled = !ok;
+        if (!ok) { cb.checked = false; unsupported.push(cb.value); }
+        cb.parentElement.style.opacity = ok ? '1' : '0.45';
+      });
+
+      document.getElementById('sectionHint').textContent = unsupported.length
+        ? `"${tpl.name}" cannot render: ${unsupported.join(', ')}.`
+        : '';
+    }
 
     document.querySelectorAll('.section-toggle').forEach(cb => {
       cb.addEventListener('change', updatePreview);
+    });
+
+    // Generate the portfolio configuration and publish it in one step, so the
+    // template choice actually reaches /portfolio/{username}.
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('generateBtn');
+      const result = document.getElementById('publishResult');
+      const sections = {};
+      document.querySelectorAll('.section-toggle').forEach(cb => { sections[cb.value] = cb.checked; });
+
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      result.textContent = '';
+
+      try {
+        // Reuse the existing portfolio if there is one, otherwise create it.
+        // Generating unconditionally would leave a new draft behind on every click.
+        let portfolio = null;
+        try { portfolio = await PP.portfolios.published(); } catch (e) { /* none */ }
+
+        if (portfolio && portfolio.id) {
+          portfolio = await PP.portfolios.update(portfolio.id, { templateKey: selectedKey, sections });
+        } else {
+          portfolio = await PP.generatePortfolio(selectedKey);
+          portfolio = await PP.portfolios.update(portfolio.id, { templateKey: selectedKey, sections });
+        }
+
+        btn.textContent = 'Publishing...';
+        const published = await PP.portfolios.publish(portfolio.id);
+
+        const url = 'portfolio.html?u=' + encodeURIComponent(published.username);
+        result.innerHTML = 'Published with <strong>' + esc(currentTemplate().name) + '</strong> &middot; '
+          + '<a href="' + url + '" target="_blank">View live page</a>';
+        PP.showToast('Portfolio published', 'success');
+      } catch (err) {
+        result.textContent = err.message || 'Could not publish';
+        PP.showToast(err.message || 'Could not publish', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate & Publish Portfolio';
+      }
     });
 
     function updatePreview() {
@@ -131,33 +228,42 @@
       const recIds = match?.recommendedProjects || [];
       const projects = (profile.projects || []).filter(p => p.includeInPortfolio || recIds.includes(p.id));
 
+      // Preview in the SELECTED template's real colours, so the choice is
+      // visible before publishing instead of every template looking identical.
+      const tpl = currentTemplate();
+      const accent = (tpl && tpl.primaryColor) || 'var(--primary)';
+      const dark = !!(tpl && tpl.darkMode);
+      const surface = dark ? '#0F172A' : 'var(--slate-50)';
+      const ink = dark ? '#E2E8F0' : 'var(--slate-600)';
+
       document.getElementById('livePreview').innerHTML = `
-        <div style="border:1px solid var(--slate-200);border-radius:0.5rem;padding:1.25rem;background:var(--slate-50);">
+        <div style="border:1px solid var(--slate-200);border-radius:0.5rem;padding:1.25rem;background:${surface};color:${ink};">
           <div style="text-align:center;margin-bottom:1rem;">
-            <div style="width:56px;height:56px;border-radius:50%;background:var(--primary);color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.25rem;">
-              ${(profile.name || 'A').charAt(0)}
+            <div style="width:56px;height:56px;border-radius:50%;background:${accent};color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.25rem;">
+              ${esc((profile.name || 'A').charAt(0))}
             </div>
-            <div class="font-bold mt-2">${profile.name || 'Your Name'}</div>
-            <div class="text-sm" style="color:var(--primary);">${profile.title || 'Title'}</div>
+            <div class="font-bold mt-2">${esc(profile.name || 'Your Name')}</div>
+            <div class="text-sm" style="color:${accent};">${esc(profile.title || 'Title')}</div>
           </div>
-          ${sections.includes('about') ? `<p class="text-sm mb-3" style="color:var(--slate-600);">${(profile.bio || '').slice(0, 120)}...</p>` : ''}
+          ${sections.includes('about') ? `<p class="text-sm mb-3" style="color:${ink};">${esc((profile.bio || '').slice(0, 120))}...</p>` : ''}
           ${sections.includes('skills') ? `
             <div class="mb-3">
               <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">SKILLS</div>
               <div class="flex" style="flex-wrap:wrap;gap:0.25rem;">
-                ${(profile.skills || []).slice(0, 6).map(s => `<span class="tag">${s.name}</span>`).join('')}
+                ${(profile.skills || []).slice(0, 6).map(s => `<span class="tag">${esc(s.name)}</span>`).join('')}
               </div>
             </div>` : ''}
           ${sections.includes('projects') ? `
             <div>
               <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">PROJECTS</div>
-              ${projects.slice(0, 2).map(p => `<div class="text-sm font-medium">${p.title}</div>`).join('') || '<div class="text-sm" style="color:var(--slate-400);">No projects</div>'}
+              ${projects.slice(0, 2).map(p => `<div class="text-sm font-medium">${esc(p.title)}</div>`).join('') || '<div class="text-sm" style="color:var(--slate-400);">No projects</div>'}
             </div>` : ''}
-          <div class="text-xs mt-4" style="color:var(--slate-400);">Template: ${selected} · Sections: ${sections.join(', ')}</div>
+          <div class="text-xs mt-4" style="color:var(--slate-400);">Template: ${esc(tpl ? tpl.name : 'none')} · Sections: ${esc(sections.join(', '))}</div>
         </div>
       `;
     }
-    updatePreview();
+
+    loadTemplates();
   </script>
 </body>
 </html>
