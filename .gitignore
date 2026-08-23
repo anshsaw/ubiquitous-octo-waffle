@@ -1,0 +1,25 @@
+# Local development runtime state created by start-dev.ps1
+# (MongoDB data files, service logs, the seed marker)
+.devdata/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+target/
+
+# Nested working copies that are not part of this repository
+private-clone/
+ubiquitous-octo-waffle/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

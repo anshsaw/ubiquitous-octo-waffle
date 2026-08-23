@@ -16,15 +16,18 @@
       <form id="adminLoginForm">
         <div class="form-group">
           <label class="form-label" for="email">Email</label>
-          <input class="form-input" type="email" id="email" value="admin@portfoliopilot.ai" required />
+          <input class="form-input" type="email" id="email" value="admin@portfoliopilot.local" required />
         </div>
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
-          <input class="form-input" type="password" id="password" value="admin" required />
+          <input class="form-input" type="password" id="password" value="DemoPass123!" required />
         </div>
         <button type="submit" class="btn btn-primary btn-block btn-lg">Login as Admin</button>
       </form>
-      <p class="auth-footer">Demo: any credentials work</p>
+      <p class="auth-footer" style="font-size:0.8125rem;">
+        Seeded admin: <code>admin@portfoliopilot.local</code> / <code>DemoPass123!</code><br />
+        The ADMIN role is verified server-side on every request.
+      </p>
     </div>
   </div>
   <script src="../js/api.js"></script>
