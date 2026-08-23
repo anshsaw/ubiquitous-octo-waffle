@@ -1,0 +1,40 @@
+{
+  "collection": "refreshTokens",
+  "description": "OPTIONAL BUT JUSTIFIED. Server-side session store so the backend can REVOKE a session (logout-everywhere, admin suspension) - something a stateless access token cannot do. NOTE: this collection only provides STORAGE. Issuing, signing and validating tokens is entirely the Spring Boot backend's job and is out of scope here. Rows self-expire via a TTL index, so no cleanup job is needed.",
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "title": "refreshTokens",
+      "required": ["userId", "tokenHash", "expiresAt", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "_class": { "bsonType": "string" },
+
+        "userId": { "bsonType": "objectId", "description": "REFERENCE -> users._id." },
+
+        "tokenHash": {
+          "bsonType": "string",
+          "minLength": 32,
+          "maxLength": 255,
+          "description": "SHA-256 hex of the refresh token, NEVER the token itself. A database dump must not yield usable sessions."
+        },
+
+        "expiresAt": {
+          "bsonType": "date",
+          "description": "TTL anchor. A TTL index with expireAfterSeconds: 0 deletes the row automatically once this timestamp passes."
+        },
+
+        "revokedAt": { "bsonType": ["date", "null"], "description": "Set on explicit logout or admin suspension; a non-null value must fail validation at the backend." },
+        "replacedByTokenHash": { "bsonType": ["string", "null"], "maxLength": 255, "description": "Supports refresh-token rotation and reuse detection." },
+
+        "userAgent": { "bsonType": ["string", "null"], "maxLength": 512 },
+        "ipAddress": { "bsonType": ["string", "null"], "maxLength": 64 },
+
+        "createdAt": { "bsonType": "date" }
+      }
+    }
+  }
+}

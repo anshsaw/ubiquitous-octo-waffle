@@ -1,0 +1,142 @@
+{
+  "collection": "portfolios",
+  "description": "A portfolio CONFIGURATION, not a copy of the profile. This is the core rule of the system: adapting a portfolio for a job must NEVER mutate profiles or projects. A portfolio document therefore stores only a template choice, section toggles and ORDERING (arrays of ids/keys). Content is resolved from profiles + projects at render time. A user may hold many portfolios (drafts, published, one per job); only one may be published under a given username at a time.",
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "title": "portfolios",
+      "required": ["userId", "username", "name", "templateId", "sections", "orderedSkills", "orderedProjects", "isPublished", "deleted", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "_class": { "bsonType": "string" },
+
+        "userId": { "bsonType": "objectId", "description": "REFERENCE -> users._id." },
+
+        "username": {
+          "bsonType": "string",
+          "minLength": 3,
+          "maxLength": 30,
+          "pattern": "^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$",
+          "description": "DENORMALISED from users.username. Deliberate duplication: the public route /portfolio/:username must resolve in ONE indexed read with no join to users. Backend must rewrite this on every username change."
+        },
+
+        "name": {
+          "bsonType": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Internal label, e.g. 'Java Developer Portfolio'. Not shown publicly."
+        },
+
+        "templateId": { "bsonType": "objectId", "description": "REFERENCE -> portfolioTemplates._id. Templates are shared across all users, so referencing is mandatory." },
+        "templateKey": {
+          "bsonType": ["string", "null"],
+          "maxLength": 60,
+          "description": "DENORMALISED portfolioTemplates.templateKey so the public renderer can pick a React component without a second query."
+        },
+
+        "sourceJobAnalysisId": {
+          "bsonType": ["objectId", "null"],
+          "description": "REFERENCE -> jobAnalyses._id. null = generic portfolio. Non-null = this portfolio was adapted for that specific opportunity."
+        },
+
+        "sections": {
+          "bsonType": "object",
+          "required": ["about", "skills", "projects", "education", "experience", "certificates", "contact"],
+          "additionalProperties": false,
+          "description": "EMBEDDED fixed-key toggle map, matching the /builder checkboxes exactly.",
+          "properties": {
+            "about": { "bsonType": "bool" },
+            "skills": { "bsonType": "bool" },
+            "projects": { "bsonType": "bool" },
+            "education": { "bsonType": "bool" },
+            "experience": { "bsonType": "bool" },
+            "certificates": { "bsonType": "bool" },
+            "contact": { "bsonType": "bool" }
+          }
+        },
+
+        "sectionOrder": {
+          "bsonType": "array",
+          "maxItems": 7,
+          "uniqueItems": true,
+          "description": "Optional custom render order. Empty/absent = the default order in lib/enums.js PORTFOLIO_SECTIONS.",
+          "items": { "enum": ["about", "skills", "projects", "education", "experience", "certificates", "contact"] }
+        },
+
+        "orderedSkills": {
+          "bsonType": "array",
+          "maxItems": 200,
+          "uniqueItems": true,
+          "description": "ORDERING ONLY - normalizedName values pointing into profiles.skills. Job-relevant skills first. No skill data is copied, so editing the profile instantly updates every portfolio.",
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+        },
+
+        "orderedProjects": {
+          "bsonType": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "description": "ORDERING ONLY - REFERENCES -> projects._id, recommended projects first. Renderer must drop ids that are deleted or have includeInPortfolio: false.",
+          "items": { "bsonType": "objectId" }
+        },
+
+        "headlineOverride": {
+          "bsonType": ["string", "null"],
+          "maxLength": 200,
+          "description": "Optional job-specific headline. Overrides profiles.professionalTitle for THIS portfolio only - the profile itself stays untouched."
+        },
+        "summaryOverride": {
+          "bsonType": ["string", "null"],
+          "maxLength": 2000,
+          "description": "Optional job-specific About text. Same non-destructive principle as headlineOverride."
+        },
+
+        "theme": {
+          "bsonType": "object",
+          "additionalProperties": false,
+          "description": "Per-portfolio visual overrides on top of the template defaults. The surface colours below back the builder's Custom template, which is how a user gets their own palette WITHOUT the platform ever accepting uploaded CSS.",
+          "properties": {
+            "primaryColor": { "bsonType": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
+            "accentColor": { "bsonType": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
+            "darkMode": { "bsonType": ["bool", "null"] },
+            "backgroundColor": {
+              "bsonType": ["string", "null"],
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Page background. The hex pattern is the sanitisation boundary - an arbitrary string here could otherwise become a CSS injection."
+            },
+            "surfaceColor": {
+              "bsonType": ["string", "null"],
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Cards, chips and nav."
+            },
+            "inkColor": {
+              "bsonType": ["string", "null"],
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Body text."
+            }
+          }
+        },
+
+        "resumeId": {
+          "bsonType": ["objectId", "null"],
+          "description": "REFERENCE -> resumes._id. Backs the public 'Download CV' button."
+        },
+
+        "isPublished": {
+          "bsonType": "bool",
+          "description": "Only one document per username may have isPublished: true (enforced by a partial unique index, see indexes/indexes.js)."
+        },
+        "publishedAt": { "bsonType": ["date", "null"] },
+        "viewCount": { "bsonType": "int", "minimum": 0, "description": "Incremented with $inc on public views. Never read on the hot path." },
+
+        "deleted": { "bsonType": "bool" },
+        "deletedAt": { "bsonType": ["date", "null"] },
+
+        "createdAt": { "bsonType": "date" },
+        "updatedAt": { "bsonType": "date" }
+      }
+    }
+  }
+}

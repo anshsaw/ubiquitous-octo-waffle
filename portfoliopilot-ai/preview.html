@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- A temporary preview must never be indexed by a search engine. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Portfolio Preview — PortfolioPilot AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!--
+    Sticky control bar. Deliberately OUTSIDE the rendered portfolio so it is
+    never mistaken for part of the design and is trivial to omit when the
+    portfolio is published for real.
+  -->
+  <div class="preview-bar" id="previewBar">
+    <div class="preview-bar-inner">
+      <div class="preview-bar-left">
+        <span class="preview-badge">Temporary Preview</span>
+        <span class="preview-meta" id="previewMeta">Loading…</span>
+      </div>
+      <div class="preview-bar-actions">
+        <a href="builder.html" class="btn btn-sm btn-ghost">&larr; Back to Builder</a>
+        <a href="builder.html" class="btn btn-sm btn-secondary">Edit Portfolio</a>
+        <button id="publishBtn" class="btn btn-sm btn-primary">Publish Portfolio</button>
+      </div>
+    </div>
+    <div class="preview-note" id="previewNote"></div>
+  </div>
+
+  <!-- The renderer writes the entire portfolio here. -->
+  <div id="portfolioRoot" class="preview-stage">
+    <div class="preview-loading">Loading your portfolio…</div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/portfolio-render.js"></script>
+  <script>
+    /*
+     * TEMPORARY PORTFOLIO PREVIEW
+     * ===========================
+     *
+     * Renders the draft portfolio the Builder just created. It is NOT public:
+     * the document has isPublished = false until the user presses Publish, and
+     * /api/public/portfolio/{username} will not serve it before then.
+     *
+     * Data comes from the existing API only — profile, projects and the saved
+     * portfolio configuration. Nothing is duplicated into localStorage beyond
+     * the id of the draft being previewed, which is a pointer, not a data copy.
+     *
+     * Which portfolio to show, in order:
+     *   1. ?id=<portfolioId>   — what the Builder redirects to
+     *   2. the last draft this browser generated (pp_portfolio_id)
+     *   3. the user's currently published portfolio, so the page is useful
+     *      even when arriving from the sidebar
+     */
+    if (!PP.requireAuth()) throw new Error('redirect');
+
+    const root = document.getElementById('portfolioRoot');
+    const meta = document.getElementById('previewMeta');
+    const note = document.getElementById('previewNote');
+    const publishBtn = document.getElementById('publishBtn');
+
+    let portfolio = null;
+
+    function fail(message, hint) {
+      root.innerHTML =
+        '<div class="preview-empty">'
+        + '<h1>' + PPRender.esc(message) + '</h1>'
+        + (hint ? '<p>' + PPRender.esc(hint) + '</p>' : '')
+        + '<a class="btn btn-primary mt-4" href="builder.html">Go to Portfolio Builder</a>'
+        + '</div>';
+      meta.textContent = '';
+      publishBtn.disabled = true;
+    }
+
+    async function resolvePortfolio() {
+      const requestedId = new URLSearchParams(window.location.search).get('id')
+        || localStorage.getItem('pp_portfolio_id');
+
+      if (requestedId) {
+        try {
+          return await PP.portfolios.get(requestedId);
+        } catch (err) {
+          // A stale id in localStorage should not dead-end the page.
+          localStorage.removeItem('pp_portfolio_id');
+        }
+      }
+      return await PP.portfolios.published();
+    }
+
+    async function load() {
+      let profile, projects, templates;
+
+      try {
+        // One round trip each, in parallel — the same endpoints the Builder,
+        // Profile and My Projects pages already use.
+        [portfolio, profile, projects, templates] = await Promise.all([
+          resolvePortfolio(),
+          PPApi.profile.get(),
+          PPApi.projects.list(),
+          PP.listTemplates()
+        ]);
+      } catch (err) {
+        fail('Could not load your portfolio', err.message);
+        return;
+      }
+
+      if (!portfolio) {
+        fail('No portfolio generated yet',
+             'Open the Portfolio Builder, choose a template and press Generate Portfolio.');
+        return;
+      }
+
+      const template = (templates || []).find(t => t.templateKey === portfolio.templateKey) || {};
+
+      const data = PPRender.buildData({ profile, projects, portfolio, template });
+
+      PPRender.applyTheme(data, document.documentElement);
+      root.innerHTML = PPRender.renderFull(data);
+      PPRender.enableSmoothScroll(root);
+
+      const enabled = data.sectionOrder.filter(s => data.sections[s]);
+      meta.textContent = data.templateName + ' · ' + enabled.length + ' sections';
+      document.title = (data.owner.fullName || 'Portfolio') + ' — Preview';
+
+      if (portfolio.published) {
+        note.innerHTML = 'This portfolio is already live at '
+          + '<a href="portfolio.html?u=' + encodeURIComponent(portfolio.username) + '" target="_blank">/portfolio/'
+          + PPRender.esc(portfolio.username) + '</a>. Publishing again refreshes it.';
+        publishBtn.textContent = 'Update Published Site';
+      } else {
+        note.textContent = 'Not published yet. Only you can see this page.';
+      }
+    }
+
+    publishBtn.addEventListener('click', async () => {
+      if (!portfolio) return;
+      publishBtn.disabled = true;
+      publishBtn.textContent = 'Publishing…';
+
+      try {
+        const published = await PP.portfolios.publish(portfolio.id);
+        const url = 'portfolio.html?u=' + encodeURIComponent(published.username);
+        note.innerHTML = 'Published. <a href="' + url + '" target="_blank">Open your live portfolio</a>';
+        publishBtn.textContent = 'Update Published Site';
+        PP.showToast('Portfolio published', 'success');
+      } catch (err) {
+        PP.showToast(err.message || 'Could not publish', 'error');
+        publishBtn.textContent = 'Publish Portfolio';
+      } finally {
+        publishBtn.disabled = false;
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

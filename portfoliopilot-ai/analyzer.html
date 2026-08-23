@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Opportunity Analyzer — PortfolioPilot AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">⚡ PortfolioPilot</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="icon">📊</span> Dashboard</a>
+      <a href="profile.html" class="nav-item" data-page="profile"><span class="icon">👤</span> Profile</a>
+      <a href="projects.html" class="nav-item" data-page="projects"><span class="icon">📁</span> My Projects</a>
+      <a href="analyzer.html" class="nav-item" data-page="analyzer"><span class="icon">🎯</span> Opportunity Analyzer</a>
+      <a href="match-analysis.html" class="nav-item" data-page="match"><span class="icon">📈</span> Match Analysis</a>
+      <a href="builder.html" class="nav-item" data-page="builder"><span class="icon">🎨</span> Portfolio Builder</a>
+      <a href="preview.html" class="nav-item" data-page="preview"><span class="icon">👁️</span> Portfolio Preview</a>
+      <a href="portfolio.html" class="nav-item" data-page="public"><span class="icon">🌐</span> Published Site</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-block" onclick="PP.logout()">Log out</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="btn btn-ghost" id="menuToggle">☰</button>
+      <div>Hi, <strong id="userName">there</strong></div>
+    </header>
+
+    <div class="page-content">
+      <h1 class="page-title">Opportunity Analyzer</h1>
+      <p class="page-subtitle">Real openings matched against what your published portfolio actually demonstrates.</p>
+
+      <div class="grid-2" style="align-items:start;gap:1.5rem;">
+
+        <!-- ============ left: candidate + providers + search ============ -->
+        <div>
+          <div class="card mb-6">
+            <div class="card-header"><h2 class="card-title">Your candidate profile</h2></div>
+            <div class="card-body" id="candidateCard">
+              <p class="text-sm" style="color:var(--slate-500);">Analyzing your portfolio…</p>
+            </div>
+          </div>
+
+          <div class="card mb-6">
+            <div class="card-header"><h2 class="card-title">Job sources</h2></div>
+            <div class="card-body" id="providerCard">
+              <p class="text-sm" style="color:var(--slate-500);">Checking availability…</p>
+            </div>
+          </div>
+
+          <div class="card mb-6">
+            <div class="card-header"><h2 class="card-title">Find opportunities</h2></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label" for="targetRole">Target role</label>
+                <input class="form-input" id="targetRole" placeholder="Auto-detect from portfolio" />
+                <p class="form-hint" id="queryHint" style="font-size:0.75rem;"></p>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="location">Location</label>
+                <input class="form-input" id="location" placeholder="Any" />
+              </div>
+              <div class="grid-2" style="gap:0.75rem;">
+                <div class="form-group">
+                  <label class="form-label" for="workType">Work type</label>
+                  <select class="form-input" id="workType">
+                    <option value="ANY">Any</option>
+                    <option value="REMOTE">Remote</option>
+                    <option value="HYBRID">Hybrid</option>
+                    <option value="ONSITE">On-site</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="experienceLevel">Experience level</label>
+                  <select class="form-input" id="experienceLevel">
+                    <option value="ANY">Any</option>
+                    <option value="INTERNSHIP">Internship</option>
+                    <option value="ENTRY">Entry level</option>
+                    <option value="JUNIOR">Junior</option>
+                    <option value="MID">Mid level</option>
+                    <option value="SENIOR">Senior</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="minimumMatch">Minimum Portfolio Match: <span id="minLabel">30</span>%</label>
+                <input type="range" id="minimumMatch" min="0" max="90" step="5" value="30" style="width:100%;" />
+              </div>
+              <button class="btn btn-primary btn-block btn-lg" id="searchBtn">Find Opportunities</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ right: results ============ -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Opportunities</h2>
+              <span class="text-sm" id="resultCount" style="color:var(--slate-500);"></span>
+            </div>
+            <div class="card-body" id="results">
+              <p class="text-sm" style="color:var(--slate-500);">
+                Press <strong>Find Opportunities</strong> to search live job sources using your portfolio.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  /*
+   * OPPORTUNITY ANALYZER
+   *
+   * All matching happens on the backend, against the PUBLISHED portfolio.
+   * This page only collects filters and renders what the API returns.
+   *
+   * It never fabricates a listing. When a provider is unavailable the reason is
+   * shown verbatim, and an empty result set says so rather than filling the gap.
+   */
+  if (!PP.requireAuth()) throw new Error('redirect');
+  PP.initAppLayout('analyzer');
+
+  const esc = (v) => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const safeUrl = (u) => {
+    try {
+      const p = new URL(u, window.location.href);
+      return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : null;
+    } catch (e) { return null; }
+  };
+
+  const ago = (iso) => {
+    if (!iso) return '';
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (days <= 0) return 'today';
+    if (days === 1) return 'yesterday';
+    if (days < 30) return days + ' days ago';
+    return Math.floor(days / 30) + ' months ago';
+  };
+
+  const scoreClass = (n) => n >= 75 ? 'badge-success' : n >= 50 ? 'badge-warning' : 'badge-danger';
+
+  let lastResults = [];
+
+  // ---------------------------------------------------------- candidate
+
+  async function loadCandidate() {
+    const host = document.getElementById('candidateCard');
+    try {
+      const c = await PPApi.http.get('/opportunities/candidate');
+
+      const sourceLabel = c.source === 'PUBLISHED_PORTFOLIO'
+        ? '<span class="badge badge-success">Published portfolio</span>'
+        : '<span class="badge badge-warning">Profile only — publish a portfolio for better matching</span>';
+
+      // "Demonstrated" vs merely "listed" is the distinction the whole product
+      // rests on, so it is shown explicitly rather than implied.
+      const demonstrated = new Set(c.demonstratedSkills || []);
+      const skills = (c.skills || []).map(s => `<span class="tag">${esc(s)}</span>`).join('');
+
+      host.innerHTML = `
+        ${sourceLabel}
+        <div class="mt-3"><strong>${esc(c.title || 'Not set')}</strong></div>
+        <div class="text-sm" style="color:var(--slate-500);">
+          ${esc(c.experienceLevel || '')} · ${c.yearsOfExperience || 0} yrs · ${c.projectCount} project(s)
+        </div>
+        <div class="mt-3 text-xs" style="color:var(--slate-500);">SKILLS</div>
+        <div class="flex mt-1" style="flex-wrap:wrap;gap:0.25rem;">${skills || '<span class="text-sm">None yet</span>'}</div>
+        <div class="mt-3 text-xs" style="color:var(--slate-500);">DEMONSTRATED IN PROJECTS OR ROLES</div>
+        <div class="text-sm mt-1">${demonstrated.size} of ${(c.skills || []).length} skills</div>`;
+    } catch (err) {
+      host.innerHTML = `<p class="text-sm" style="color:var(--danger);">Unable to load your portfolio. ${esc(err.message)}</p>`;
+    }
+  }
+
+  async function loadProviders() {
+    const host = document.getElementById('providerCard');
+    try {
+      const providers = await PPApi.http.get('/opportunities/providers');
+      host.innerHTML = providers.map(p => `
+        <div class="mb-3">
+          <div class="flex items-center gap-2">
+            <span class="badge ${p.available ? 'badge-success' : 'badge-danger'}">${p.available ? 'Connected' : 'Unavailable'}</span>
+            <strong class="text-sm">${esc(p.name)}</strong>
+          </div>
+          ${p.reason ? `<p class="text-xs mt-1" style="color:var(--slate-500);">${esc(p.reason)}</p>` : ''}
+        </div>`).join('');
+    } catch (err) {
+      host.innerHTML = `<p class="text-sm" style="color:var(--danger);">Unable to check job sources.</p>`;
+    }
+  }
+
+  async function loadQueryHint() {
+    try {
+      const queries = await PPApi.http.get('/opportunities/queries');
+      document.getElementById('queryHint').textContent =
+        'Will search: ' + queries.slice(0, 4).join(' · ') + (queries.length > 4 ? ' …' : '');
+    } catch (e) { /* non-critical */ }
+  }
+
+  // ------------------------------------------------------------ search
+
+  document.getElementById('minimumMatch').addEventListener('input', (e) => {
+    document.getElementById('minLabel').textContent = e.target.value;
+  });
+
+  document.getElementById('searchBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('searchBtn');
+    const host = document.getElementById('results');
+
+    btn.disabled = true;
+    btn.textContent = 'Searching job sources…';
+    host.innerHTML = '<p class="text-sm" style="color:var(--slate-500);">Analyzing portfolio, then searching live job sources…</p>';
+    document.getElementById('resultCount').textContent = '';
+
+    try {
+      const payload = {
+        targetRole: document.getElementById('targetRole').value.trim() || null,
+        location: document.getElementById('location').value.trim() || null,
+        workType: document.getElementById('workType').value,
+        experienceLevel: document.getElementById('experienceLevel').value,
+        minimumMatch: Number(document.getElementById('minimumMatch').value),
+        limit: 20
+      };
+
+      const data = await PPApi.http.post('/opportunities/search', payload);
+      lastResults = data.opportunities || [];
+      renderResults(data);
+    } catch (err) {
+      host.innerHTML = `<p class="text-sm" style="color:var(--danger);">
+        Unable to retrieve current job listings. ${esc(err.message)}</p>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Find Opportunities';
+    }
+  });
+
+  function renderResults(data) {
+    const host = document.getElementById('results');
+    const jobs = data.opportunities || [];
+
+    document.getElementById('resultCount').textContent =
+      `${data.shown} of ${data.totalFound} listings`;
+
+    const unavailable = (data.providers || []).filter(p => !p.available);
+    const notice = unavailable.length
+      ? `<div class="alert mb-4" style="background:var(--slate-50);border:1px solid var(--slate-200);padding:0.75rem;border-radius:0.5rem;">
+           <div class="text-sm"><strong>Some sources are unavailable.</strong></div>
+           ${unavailable.map(p => `<div class="text-xs mt-1" style="color:var(--slate-500);">${esc(p.name)}: ${esc(p.reason)}</div>`).join('')}
+         </div>` : '';
+
+    if (!jobs.length) {
+      host.innerHTML = notice + `
+        <p class="text-sm" style="color:var(--slate-500);">
+          No opportunities cleared your minimum match. Try lowering the threshold, clearing the
+          target role, or adding more technologies to your projects.
+        </p>`;
+      return;
+    }
+
+    host.innerHTML = notice + jobs.map((j, i) => {
+      const url = safeUrl(j.url);
+      return `
+      <article class="card mb-4" style="border:1px solid var(--slate-200);">
+        <div class="card-body">
+          <div class="flex items-center justify-between gap-2" style="flex-wrap:wrap;">
+            <h3 style="font-size:1.0625rem;font-weight:600;">${esc(j.title)}</h3>
+            <span class="badge ${scoreClass(j.matchScore)}">${j.matchScore}% Portfolio Match</span>
+          </div>
+          <div class="text-sm mt-1" style="color:var(--slate-500);">
+            ${esc(j.company)}${j.location ? ' · ' + esc(j.location) : ''}${j.workType ? ' · ' + esc(j.workType) : ''}
+            ${j.postedAt ? ' · posted ' + esc(ago(j.postedAt)) : ''} · via ${esc(j.source)}
+          </div>
+
+          ${j.matchedSkills.length ? `<div class="flex mt-3" style="flex-wrap:wrap;gap:0.25rem;">
+            ${j.matchedSkills.slice(0, 8).map(s => `<span class="tag tag-green">✓ ${esc(s)}</span>`).join('')}
+          </div>` : ''}
+          ${j.partialSkills.length ? `<div class="flex mt-2" style="flex-wrap:wrap;gap:0.25rem;">
+            ${j.partialSkills.slice(0, 6).map(s => `<span class="tag tag-amber">◐ ${esc(s)}</span>`).join('')}
+          </div>` : ''}
+          ${j.missingSkills.length ? `<div class="flex mt-2" style="flex-wrap:wrap;gap:0.25rem;">
+            ${j.missingSkills.slice(0, 6).map(s => `<span class="tag">✗ ${esc(s)}</span>`).join('')}
+          </div>` : ''}
+
+          <p class="text-sm mt-3" style="color:var(--slate-600);">${esc(j.explanation)}</p>
+
+          <details class="mt-2">
+            <summary class="text-xs" style="cursor:pointer;color:var(--slate-500);">Score breakdown</summary>
+            <div class="text-xs mt-2" style="color:var(--slate-500);">
+              skills ${j.breakdown.skills}% (40%) ·
+              role ${j.breakdown.role}% (20%) ·
+              experience ${j.breakdown.experience}% (15%) ·
+              projects ${j.breakdown.projects}% (10%) ·
+              education ${j.breakdown.education}% (5%) ·
+              location ${j.breakdown.location}% (10%)
+            </div>
+          </details>
+
+          <div class="flex gap-2 mt-4" style="flex-wrap:wrap;">
+            <button class="btn btn-sm btn-primary" onclick="analyzeMatch(${i})">Analyze Match</button>
+            ${url ? `<a class="btn btn-sm btn-secondary" href="${esc(url)}" target="_blank" rel="noopener noreferrer">View Job</a>` : ''}
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  /*
+   * Analyze Match.
+   *
+   * Sends the real listing text through the SAME /api/opportunities/analyze
+   * endpoint used by the paste-a-description flow, so a job found by search and
+   * the same job pasted by hand produce an identical analysis. The stored
+   * analysis id is then handed to match-analysis.html — the job travels through
+   * the backend, not through localStorage.
+   */
+  window.analyzeMatch = async function (index) {
+    const job = lastResults[index];
+    if (!job) return;
+
+    PP.showToast('Analyzing this role against your portfolio…', 'info');
+
+    try {
+      const analysis = await PPApi.opportunities.analyze(
+        job.title,
+        job.company,
+        job.description && job.description.length > 60
+          ? job.description
+          : (job.title + '\n\nRequirements\n' + [...job.matchedSkills, ...job.missingSkills]
+              .map(s => '- Experience with ' + s).join('\n'))
+      );
+
+      localStorage.setItem('pp_last_job_url', job.url || '');
+      window.location.href = 'match-analysis.html?id=' + encodeURIComponent(analysis.id);
+    } catch (err) {
+      PP.showToast(err.message || 'Could not analyze this opportunity', 'error');
+    }
+  };
+
+  loadCandidate();
+  loadProviders();
+  loadQueryHint();
+</script>
+</body>
+</html>

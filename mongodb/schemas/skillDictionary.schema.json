@@ -1,0 +1,64 @@
+{
+  "collection": "skillDictionary",
+  "description": "OPTIONAL BUT JUSTIFIED. Global alias table that collapses 'React', 'React.js' and 'ReactJS' into one canonical skill. Without it, match scoring silently under-reports (a user with 'ReactJS' would show a gap for a job asking 'React.js') and the admin 'top skill gaps' chart splits one skill across several bars. Shared reference data, so it is a collection rather than embedded anywhere.",
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "title": "skillDictionary",
+      "required": ["canonicalName", "normalizedName", "aliases", "category", "active", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "_class": { "bsonType": "string" },
+
+        "canonicalName": {
+          "bsonType": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Correctly-cased display form, e.g. 'React', 'Spring Boot', 'PostgreSQL'."
+        },
+        "normalizedName": {
+          "bsonType": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "pattern": "^[a-z0-9+#][a-z0-9+# ]*$",
+          "description": "Unique canonical key, e.g. 'react'. This is what gets written into profiles.skills[].normalizedName."
+        },
+
+        "aliases": {
+          "bsonType": "array",
+          "maxItems": 40,
+          "uniqueItems": true,
+          "description": "Already-normalised alternative spellings, e.g. ['react js','reactjs']. Indexed multikey so alias -> canonical resolution is a single indexed lookup.",
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+        },
+
+        "category": {
+          "enum": ["FRONTEND", "BACKEND", "DATABASE", "DEVOPS", "CLOUD", "MOBILE", "TESTING", "DATA_AI", "TOOLS", "LANGUAGE", "SOFT_SKILL", "OTHER"]
+        },
+
+        "relatedSkills": {
+          "bsonType": "array",
+          "maxItems": 30,
+          "uniqueItems": true,
+          "description": "normalizedName values of adjacent skills. Enables partial-credit semantic scoring ('Spring' ~ 'Spring Boot') and 'learn this next' suggestions for skill gaps.",
+          "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+        },
+
+        "weight": {
+          "bsonType": ["double", "int", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Relative importance used by the scorer. Lets a niche framework outrank a generic term like 'programming'."
+        },
+
+        "active": { "bsonType": "bool" },
+
+        "createdAt": { "bsonType": "date" },
+        "updatedAt": { "bsonType": "date" }
+      }
+    }
+  }
+}

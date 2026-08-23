@@ -1,0 +1,158 @@
+{
+  "collection": "jobAnalyses",
+  "description": "The heart of PortfolioPilot. One immutable record per 'Analyze Opportunity' action. It is an EVENT/SNAPSHOT: once written it is never edited, so the user can revisit an old analysis and see exactly what the AI concluded at that time, even if their profile changed since.",
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "title": "jobAnalyses",
+      "required": ["userId", "job", "analysis", "recommendedProjects", "deleted", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "_class": { "bsonType": "string" },
+
+        "userId": {
+          "bsonType": "objectId",
+          "description": "REFERENCE -> users._id. Owner. Also the admin 'linked user' column in the Job Analyses Log."
+        },
+
+        "job": {
+          "bsonType": "object",
+          "required": ["title", "description"],
+          "additionalProperties": false,
+          "description": "EMBEDDED SNAPSHOT of the pasted posting. Deliberately duplicated rather than referenced: a job posting has no independent lifecycle in this product and the raw text must remain frozen for audit/re-scoring.",
+          "properties": {
+            "title": { "bsonType": "string", "minLength": 1, "maxLength": 200 },
+            "normalizedTitle": {
+              "bsonType": ["string", "null"],
+              "maxLength": 200,
+              "description": "DERIVED lowercase title. Powers the 'most analysed job roles' admin chart without a $toLower over the whole collection."
+            },
+            "company": { "bsonType": ["string", "null"], "maxLength": 160 },
+            "location": { "bsonType": ["string", "null"], "maxLength": 160 },
+            "employmentType": { "enum": ["INTERNSHIP", "FULL_TIME", "PART_TIME", "FREELANCE", "PROJECT", null] },
+            "description": {
+              "bsonType": "string",
+              "minLength": 20,
+              "maxLength": 30000,
+              "description": "Raw pasted JD. Capped at 30k chars: well under the 16MB document limit and far beyond any real posting."
+            },
+            "sourceUrl": { "bsonType": ["string", "null"], "maxLength": 2048 },
+            "source": { "enum": ["PASTED", "URL", "UPLOAD", "SEED", null] }
+          }
+        },
+
+        "analysis": {
+          "bsonType": "object",
+          "required": ["matchScore", "skillsMatch", "projectsMatch", "requirementsMatch", "strongSkills", "skillGaps"],
+          "additionalProperties": false,
+          "description": "Output of generateMatch(jobDescription, userProfile). All four scores are stored as SEPARATE numeric fields (not a nested map) so each can be indexed, averaged and filtered independently.",
+          "properties": {
+            "matchScore": { "bsonType": "int", "minimum": 0, "maximum": 100, "description": "Overall weighted score shown in the big progress ring." },
+            "skillsMatch": { "bsonType": "int", "minimum": 0, "maximum": 100 },
+            "projectsMatch": { "bsonType": "int", "minimum": 0, "maximum": 100 },
+            "requirementsMatch": { "bsonType": "int", "minimum": 0, "maximum": 100 },
+
+            "strongSkills": {
+              "bsonType": "array",
+              "maxItems": 100,
+              "description": "Display names the user HAS and the job WANTS (green tags).",
+              "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+            },
+            "strongSkillsNormalized": {
+              "bsonType": "array",
+              "maxItems": 100,
+              "uniqueItems": true,
+              "description": "DERIVED. Aggregation-safe form for 'most requested skills'.",
+              "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+            },
+            "skillGaps": {
+              "bsonType": "array",
+              "maxItems": 100,
+              "description": "Display names the job WANTS but the user LACKS (amber/red tags).",
+              "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+            },
+            "skillGapsNormalized": {
+              "bsonType": "array",
+              "maxItems": 100,
+              "uniqueItems": true,
+              "description": "DERIVED. THE field the admin 'Top skill gaps' bar chart unwinds. Without it the chart would count 'React', 'React.js' and 'ReactJS' as three different gaps.",
+              "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+            },
+            "extractedRequirements": {
+              "bsonType": "array",
+              "maxItems": 60,
+              "description": "Requirement lines parsed out of the JD, each marked met/unmet. Backs the Requirements Match sub-score.",
+              "items": {
+                "bsonType": "object",
+                "required": ["text", "met"],
+                "additionalProperties": false,
+                "properties": {
+                  "text": { "bsonType": "string", "minLength": 1, "maxLength": 500 },
+                  "met": { "bsonType": "bool" },
+                  "weight": { "bsonType": ["double", "int", "null"], "minimum": 0, "maximum": 1 }
+                }
+              }
+            },
+            "engine": {
+              "bsonType": ["string", "null"],
+              "maxLength": 60,
+              "description": "Which scorer produced this record, e.g. 'mock-v1', 'keyword-v2', 'embeddings-v1'. Essential for comparing scores after an algorithm change."
+            }
+          }
+        },
+
+        "recommendedProjects": {
+          "bsonType": "array",
+          "maxItems": 50,
+          "description": "REFERENCES, never copies. Storing the full project document here would duplicate large text/image data across every analysis and go stale the moment the user edits the project.",
+          "items": {
+            "bsonType": "object",
+            "required": ["projectId", "relevanceScore"],
+            "additionalProperties": false,
+            "properties": {
+              "projectId": { "bsonType": "objectId", "description": "REFERENCE -> projects._id." },
+              "titleSnapshot": {
+                "bsonType": ["string", "null"],
+                "maxLength": 160,
+                "description": "Only the title is snapshotted, so a soft-deleted project still renders as readable history."
+              },
+              "relevanceScore": { "bsonType": "int", "minimum": 0, "maximum": 100 },
+              "reason": { "bsonType": ["string", "null"], "maxLength": 500, "description": "Human-readable justification shown on the Match Analysis chips." },
+              "matchedSkills": {
+                "bsonType": "array",
+                "maxItems": 40,
+                "items": { "bsonType": "string", "minLength": 1, "maxLength": 60 }
+              }
+            }
+          }
+        },
+
+        "tailoredSummary": {
+          "bsonType": ["string", "null"],
+          "maxLength": 1200,
+          "description": "Auto-written professional summary aimed at this specific role. Copied into the generated resume."
+        },
+
+        "resumeId": {
+          "bsonType": ["objectId", "null"],
+          "description": "REFERENCE -> resumes._id. Denormalised back-pointer so /match-analysis can show 'Resume already generated' without a second query. resumes.jobAnalysisId remains the authoritative link."
+        },
+        "portfolioId": {
+          "bsonType": ["objectId", "null"],
+          "description": "REFERENCE -> portfolios._id for the job-specific adapted portfolio, if one was generated."
+        },
+
+        "deleted": { "bsonType": "bool" },
+        "deletedAt": { "bsonType": ["date", "null"] },
+
+        "createdAt": {
+          "bsonType": "date",
+          "description": "Analyses are immutable, so there is intentionally no updatedAt."
+        }
+      }
+    }
+  }
+}

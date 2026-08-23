@@ -1,0 +1,25 @@
+{
+  "name": "portfoliopilot-mongodb",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MongoDB database layer (schemas, indexes, aggregations, seed) for PortfolioPilot AI. Consumed by a separate Java/Spring Boot backend.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "schemas": "node scripts/applySchemas.js",
+    "indexes": "node indexes/indexes.js",
+    "seed": "node seed/seed.js",
+    "setup": "node scripts/setup.js",
+    "reset": "node scripts/reset.js",
+    "stats": "node scripts/runAggregations.js",
+    "verify": "node scripts/verify.js",
+    "explain": "node scripts/explain.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.8.0"
+  }
+}

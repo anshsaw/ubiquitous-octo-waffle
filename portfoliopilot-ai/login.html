@@ -17,11 +17,11 @@
       <form id="loginForm">
         <div class="form-group">
           <label class="form-label" for="email">Email</label>
-          <input class="form-input" type="email" id="email" name="email" placeholder="you@example.com" required value="alex@example.com" />
+          <input class="form-input" type="email" id="email" name="email" placeholder="you@example.com" required value="demo@portfoliopilot.local" />
         </div>
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
-          <input class="form-input" type="password" id="password" name="password" placeholder="••••••••" required value="password" />
+          <input class="form-input" type="password" id="password" name="password" placeholder="••••••••" required value="DemoPass123!" />
           <div class="form-hint" style="text-align:right;margin-top:0.5rem;">
             <a href="#" onclick="alert('Demo: password reset not implemented');return false;">Forgot password?</a>
           </div>
@@ -33,22 +33,38 @@
         New here? <a href="register.html">Create an account</a>
       </p>
       <p class="auth-footer" style="margin-top:0.75rem;font-size:0.8125rem;">
-        Demo: any email + any password works
+        Seeded demo account: <code>demo@portfoliopilot.local</code> / <code>DemoPass123!</code><br />
+        Requires the backend on :8080 and <code>cd mongodb &amp;&amp; npm run seed</code>.
       </p>
     </div>
   </div>
 
+  <script src="js/api.js"></script>
   <script src="js/app.js"></script>
   <script>
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
+    // Real authentication against the Spring Boot API.
+    // The password is actually verified now; the previous version accepted anything.
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const button = e.target.querySelector('button[type="submit"]');
       const email = document.getElementById('email').value.trim();
-      const profile = PP.getProfile();
-      if (email) profile.email = email;
-      PP.saveProfile(profile);
-      PP.setLoggedIn(true);
-      PP.showToast('Logged in successfully', 'success');
-      setTimeout(() => { window.location.href = 'dashboard.html'; }, 400);
+      const password = document.getElementById('password').value;
+
+      button.disabled = true;
+      button.textContent = 'Signing in...';
+
+      try {
+        // PP.login also warms the profile cache before we navigate, so the
+        // dashboard renders real data on its first synchronous read.
+        await PP.login(email, password);
+        PP.showToast('Logged in successfully', 'success');
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        PP.showToast(err.message || 'Login failed', 'error');
+        button.disabled = false;
+        button.textContent = 'Login';
+      }
     });
   </script>
 </body>

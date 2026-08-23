@@ -4,255 +4,272 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Match Analysis — PortfolioPilot AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <div class="app-layout">
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-brand"><span>⚡</span> PortfolioPilot</div>
-      <nav class="sidebar-nav">
-        <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="icon">🏠</span> Dashboard</a>
-        <a href="profile.html" class="nav-item" data-page="profile"><span class="icon">👤</span> Profile</a>
-        <a href="projects.html" class="nav-item" data-page="projects"><span class="icon">📁</span> My Projects</a>
-        <a href="analyzer.html" class="nav-item" data-page="analyzer"><span class="icon">🔍</span> Opportunity Analyzer</a>
-        <a href="match-analysis.html" class="nav-item" data-page="match"><span class="icon">📊</span> Match Analysis</a>
-        <a href="builder.html" class="nav-item" data-page="builder"><span class="icon">🛠️</span> Portfolio Builder</a>
-        <a href="preview.html" class="nav-item" data-page="preview"><span class="icon">👁️</span> Portfolio Preview</a>
-        <a href="portfolio.html" class="nav-item" data-page="public" target="_blank"><span class="icon">🌐</span> Published Site</a>
-      </nav>
-      <div class="sidebar-footer">
-        <button class="btn btn-ghost btn-block" onclick="PP.logout()">Logout</button>
-      </div>
-    </aside>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">⚡ PortfolioPilot</div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="icon">📊</span> Dashboard</a>
+      <a href="profile.html" class="nav-item" data-page="profile"><span class="icon">👤</span> Profile</a>
+      <a href="projects.html" class="nav-item" data-page="projects"><span class="icon">📁</span> My Projects</a>
+      <a href="analyzer.html" class="nav-item" data-page="analyzer"><span class="icon">🎯</span> Opportunity Analyzer</a>
+      <a href="match-analysis.html" class="nav-item" data-page="match"><span class="icon">📈</span> Match Analysis</a>
+      <a href="builder.html" class="nav-item" data-page="builder"><span class="icon">🎨</span> Portfolio Builder</a>
+      <a href="preview.html" class="nav-item" data-page="preview"><span class="icon">👁️</span> Portfolio Preview</a>
+      <a href="portfolio.html" class="nav-item" data-page="public"><span class="icon">🌐</span> Published Site</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-block" onclick="PP.logout()">Log out</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <div class="main-content">
-      <header class="topbar">
-        <button class="menu-toggle" id="menuToggle">☰</button>
-        <div class="flex items-center gap-3">
-          <span class="text-sm">Hi, <strong id="userName">Alex</strong></span>
-        </div>
-      </header>
+  <div class="main-content">
+    <header class="topbar">
+      <button class="btn btn-ghost" id="menuToggle">☰</button>
+      <div>Hi, <strong id="userName">there</strong></div>
+    </header>
 
-      <main class="page-content">
-        <div id="noMatch" class="hidden">
-          <h1 class="page-title">Match Analysis</h1>
-          <div class="card">
-            <div class="card-body text-center" style="padding:3rem;">
-              <p style="color:var(--slate-500);margin-bottom:1.5rem;">No analysis yet. Paste a job description to see your match score.</p>
-              <a href="analyzer.html" class="btn btn-primary">Go to Opportunity Analyzer</a>
-            </div>
-          </div>
-        </div>
-
-        <div id="matchContent" class="hidden">
-          <h1 class="page-title">Match Analysis</h1>
-          <p class="page-subtitle" id="jobLabel">Job Opportunity</p>
-
-          <!-- Overall + sub-scores -->
-          <div class="card mb-6">
-            <div class="card-body">
-              <div class="match-hero">
-                <div class="progress-ring" id="ringContainer">
-                  <svg width="180" height="180">
-                    <circle class="ring-bg" cx="90" cy="90" r="78" stroke-width="14" />
-                    <circle class="ring-fg" id="ringFg" cx="90" cy="90" r="78" stroke-width="14"
-                      stroke="#10B981" stroke-dasharray="490" stroke-dashoffset="490" />
-                  </svg>
-                  <div class="ring-text">
-                    <div class="ring-value" id="matchValue">0%</div>
-                    <div class="ring-label">Overall Match</div>
-                  </div>
-                </div>
-                <div class="sub-scores">
-                  <div class="mb-4">
-                    <div class="sub-score-row">
-                      <span>Skills Match</span>
-                      <strong id="skillsPct">0%</strong>
-                    </div>
-                    <div class="progress"><div class="progress-bar primary" id="skillsBar" style="width:0%"></div></div>
-                  </div>
-                  <div class="mb-4">
-                    <div class="sub-score-row">
-                      <span>Projects Match</span>
-                      <strong id="projectsPct">0%</strong>
-                    </div>
-                    <div class="progress"><div class="progress-bar green" id="projectsBar" style="width:0%"></div></div>
-                  </div>
-                  <div>
-                    <div class="sub-score-row">
-                      <span>Requirements Match</span>
-                      <strong id="reqPct">0%</strong>
-                    </div>
-                    <div class="progress"><div class="progress-bar amber" id="reqBar" style="width:0%"></div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Strong vs Gaps -->
-          <div class="skills-lists mb-6">
-            <div class="card">
-              <div class="card-body skills-box">
-                <h4><span style="color:var(--success);">●</span> Strong Skills</h4>
-                <div id="strongSkills"></div>
-              </div>
-            </div>
-            <div class="card">
-              <div class="card-body skills-box">
-                <h4><span style="color:var(--warning);">●</span> Skill Gaps</h4>
-                <div id="skillGaps"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recommended Projects -->
-          <div class="card mb-6">
-            <div class="card-header">
-              <h2 class="card-title">Recommended Projects for this role</h2>
-            </div>
-            <div class="card-body" id="recProjects"></div>
-          </div>
-
-          <!-- CTAs -->
-          <div class="flex gap-3" style="flex-wrap:wrap;">
-            <a href="builder.html" class="btn btn-primary btn-lg">Adapt Portfolio for this Job</a>
-            <button class="btn btn-success btn-lg" id="genResumeBtn">Generate Tailored Resume</button>
-            <a href="analyzer.html" class="btn btn-secondary">Analyze Another</a>
-          </div>
-        </div>
-      </main>
+    <div class="page-content" id="page">
+      <p class="text-sm" style="color:var(--slate-500);">Calculating match…</p>
     </div>
   </div>
+</div>
 
-  <!-- Resume Modal -->
-  <div class="modal-overlay" id="resumeModal">
-    <div class="modal" style="max-width:720px;">
-      <div class="modal-header no-print">
-        <h3>Tailored Resume</h3>
-        <button class="modal-close" id="closeResume">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="resume-page" id="resumeContent"></div>
-      </div>
-      <div class="modal-footer no-print">
-        <button class="btn btn-secondary" id="closeResume2">Close</button>
-        <button class="btn btn-primary" onclick="window.print()">Download / Print PDF</button>
-      </div>
-    </div>
-  </div>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  /*
+   * MATCH ANALYSIS
+   *
+   * Answers "how well does my PUBLISHED PORTFOLIO match this job?".
+   *
+   * Loads a stored analysis by id — the same record the Opportunity Analyzer
+   * created, and the same record the paste-a-description flow creates. The job
+   * travels through the backend, not localStorage.
+   *
+   *   ?id=<analysisId>   a specific analysis
+   *   no id              the most recent one
+   *
+   * Skill states come from comparing the job's demands against what the
+   * portfolio DEMONSTRATES (a project or a real role) versus what it merely
+   * lists. That distinction is why gaps are worded "not demonstrated in your
+   * portfolio" and never "you don't know this".
+   */
+  if (!PP.requireAuth()) throw new Error('redirect');
+  PP.initAppLayout('match');
 
-  <script src="js/app.js"></script>
-  <script>
-    if (!PP.requireAuth()) throw new Error('redirect');
-    PP.initAppLayout('match');
+  const page = document.getElementById('page');
 
-    const match = PP.getLastMatch();
-    const profile = PP.getProfile();
+  const esc = (v) => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-    if (!match) {
-      document.getElementById('noMatch').classList.remove('hidden');
-    } else {
-      document.getElementById('matchContent').classList.remove('hidden');
-      document.getElementById('jobLabel').textContent = match.jobTitle || 'Job Opportunity';
+  const norm = (s) => String(s || '').toLowerCase().trim();
 
-      // Animate ring
-      const circumference = 2 * Math.PI * 78;
-      const offset = circumference - (match.matchScore / 100) * circumference;
-      const ring = document.getElementById('ringFg');
-      ring.style.stroke = match.matchScore >= 75 ? '#10B981' : match.matchScore >= 50 ? '#F59E0B' : '#EF4444';
-      setTimeout(() => { ring.style.strokeDashoffset = offset; }, 100);
-      document.getElementById('matchValue').textContent = match.matchScore + '%';
+  function bar(label, value, colour) {
+    return `
+      <div class="sub-score-row mb-3">
+        <div class="flex items-center justify-between">
+          <span class="text-sm">${esc(label)}</span>
+          <strong class="text-sm">${value}%</strong>
+        </div>
+        <div class="progress mt-1"><div class="progress-bar ${colour}" style="width:${value}%;"></div></div>
+      </div>`;
+  }
 
-      document.getElementById('skillsPct').textContent = match.skillsMatch + '%';
-      document.getElementById('skillsBar').style.width = match.skillsMatch + '%';
-      document.getElementById('projectsPct').textContent = match.projectsMatch + '%';
-      document.getElementById('projectsBar').style.width = match.projectsMatch + '%';
-      document.getElementById('reqPct').textContent = match.requirementsMatch + '%';
-      document.getElementById('reqBar').style.width = match.requirementsMatch + '%';
+  function ringColour(n) { return n >= 75 ? '#10B981' : n >= 50 ? '#F59E0B' : '#EF4444'; }
 
-      document.getElementById('strongSkills').innerHTML =
-        (match.strongSkills || []).map(s => `<span class="tag tag-green">${s}</span>`).join('') || '<span class="text-sm" style="color:var(--slate-500);">None detected</span>';
-      document.getElementById('skillGaps').innerHTML =
-        (match.skillGaps || []).map(s => `<span class="tag tag-amber">${s}</span>`).join('') || '<span class="text-sm" style="color:var(--slate-500);">No major gaps</span>';
+  async function load() {
+    const id = new URLSearchParams(window.location.search).get('id');
+    let analysis, candidate;
 
-      // Recommended projects
-      const recIds = match.recommendedProjects || [];
-      const rec = (profile.projects || []).filter(p => recIds.includes(p.id));
-      document.getElementById('recProjects').innerHTML = rec.length
-        ? rec.map(p => `
-            <div style="padding:0.75rem 0;border-bottom:1px solid var(--slate-100);">
-              <div class="font-medium">${p.title}</div>
-              <div class="text-sm" style="color:var(--slate-500);">${(p.tech || []).join(' · ')}</div>
-            </div>
-          `).join('')
-        : '<p style="color:var(--slate-500);">No specific projects recommended. Add more projects that match the job tech stack.</p>';
+    try {
+      if (id) {
+        analysis = await PPApi.opportunities.get(id);
+      } else {
+        const recent = await PPApi.opportunities.recent();
+        if (!recent.length) {
+          page.innerHTML = `
+            <h1 class="page-title">Match Analysis</h1>
+            <div class="card"><div class="card-body" style="text-align:center;padding:3rem;">
+              <p style="color:var(--slate-500);">No analysis yet.</p>
+              <a class="btn btn-primary mt-4" href="analyzer.html">Find Opportunities</a>
+            </div></div>`;
+          return;
+        }
+        analysis = await PPApi.opportunities.get(recent[0].id);
+      }
+      candidate = await PPApi.http.get('/opportunities/candidate');
+    } catch (err) {
+      page.innerHTML = `<h1 class="page-title">Match Analysis</h1>
+        <p style="color:var(--danger);">Unable to load this analysis. ${esc(err.message)}</p>`;
+      return;
     }
 
-    // Resume generation
-    const resumeModal = document.getElementById('resumeModal');
-    document.getElementById('genResumeBtn')?.addEventListener('click', () => {
-      const m = PP.getLastMatch();
-      const p = PP.getProfile();
-      if (!m) return;
+    render(analysis, candidate);
+  }
 
-      const strong = m.strongSkills || [];
-      const otherSkills = (p.skills || []).map(s => s.name).filter(n => !strong.map(x => x.toLowerCase()).includes(n.toLowerCase()));
-      const orderedSkills = [...strong, ...otherSkills];
-      const recIds = m.recommendedProjects || [];
-      const orderedProjects = [
-        ...(p.projects || []).filter(pr => recIds.includes(pr.id)),
-        ...(p.projects || []).filter(pr => !recIds.includes(pr.id) && pr.includeInPortfolio),
-      ];
+  function render(a, candidate) {
+    // Skills the portfolio can actually evidence, not merely list.
+    const demonstrated = new Set((candidate.demonstratedSkills || []).map(norm));
+    const listed = new Set((candidate.skills || []).map(norm));
 
-      document.getElementById('resumeContent').innerHTML = `
-        <div class="resume-header">
-          <h1>${p.name || 'Your Name'}</h1>
-          <div class="meta">${p.title || ''} ${p.location ? '· ' + p.location : ''} ${p.email ? '· ' + p.email : ''}</div>
-        </div>
-        <div class="resume-section">
-          <h2>Summary</h2>
-          <p>${m.tailoredSummary || p.bio || ''}</p>
-        </div>
-        <div class="resume-section">
-          <h2>Skills</h2>
-          <p>${orderedSkills.join(' · ')}</p>
-        </div>
-        ${orderedProjects.length ? `
-        <div class="resume-section">
-          <h2>Projects</h2>
-          ${orderedProjects.map(pr => `
-            <div style="margin-bottom:0.75rem;">
-              <strong>${pr.title}</strong>
-              ${pr.tech?.length ? ' — ' + pr.tech.join(', ') : ''}
-              <p style="margin:0.25rem 0 0;">${pr.description || ''}</p>
-            </div>
-          `).join('')}
-        </div>` : ''}
-        ${(p.education || []).length ? `
-        <div class="resume-section">
-          <h2>Education</h2>
-          ${(p.education || []).map(e => `<p><strong>${e.degree}</strong> — ${e.school}, ${e.year}</p>`).join('')}
-        </div>` : ''}
-        ${(p.experience || []).length ? `
-        <div class="resume-section">
-          <h2>Experience</h2>
-          ${(p.experience || []).map(e => `
-            <div style="margin-bottom:0.75rem;">
-              <strong>${e.role}</strong> — ${e.company} (${e.period})
-              <p style="margin:0.25rem 0 0;">${e.description || ''}</p>
-            </div>
-          `).join('')}
-        </div>` : ''}
-      `;
-      resumeModal.classList.add('open');
-    });
+    const strong = [], partial = [], missing = [];
+    (a.strongSkills || []).forEach(s => (demonstrated.has(norm(s)) ? strong : partial).push(s));
+    (a.skillGaps || []).forEach(s => (listed.has(norm(s)) ? partial : missing).push(s));
 
-    document.getElementById('closeResume')?.addEventListener('click', () => resumeModal.classList.remove('open'));
-    document.getElementById('closeResume2')?.addEventListener('click', () => resumeModal.classList.remove('open'));
-    resumeModal?.addEventListener('click', (e) => { if (e.target === resumeModal) resumeModal.classList.remove('open'); });
-  </script>
+    const jobUrl = localStorage.getItem('pp_last_job_url');
+
+    // Estimate only. Closing a gap changes what the portfolio SHOWS, which is
+    // not the same as being offered the role, so it is labelled accordingly.
+    const potential = Math.min(100, a.matchScore + Math.min(12, partial.length * 3 + missing.length * 2));
+
+    const recs = [];
+    partial.slice(0, 3).forEach(s => recs.push(
+      `Add a project or role that shows <strong>${esc(s)}</strong> — it is in your skills but nothing demonstrates it.`));
+    missing.slice(0, 2).forEach(s => recs.push(
+      `<strong>${esc(s)}</strong> is asked for but not demonstrated. If you have used it, add it to a project.`));
+    if ((a.recommendedProjects || []).length) recs.push(
+      `Lead your portfolio with <strong>${esc(a.recommendedProjects[0].title)}</strong> for this role.`);
+    recs.push('Add measurable outcomes to your strongest project descriptions.');
+
+    page.innerHTML = `
+      <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:0.5rem;">
+        <div>
+          <h1 class="page-title" style="margin-bottom:0.25rem;">${esc(a.jobTitle || 'Match Analysis')}</h1>
+          <p class="page-subtitle">${esc(a.company || '')}${a.company ? ' · ' : ''}Portfolio Match Score</p>
+        </div>
+        <div class="flex gap-2">
+          <a class="btn btn-sm btn-ghost" href="analyzer.html">← Opportunities</a>
+          ${jobUrl ? `<a class="btn btn-sm btn-secondary" href="${esc(jobUrl)}" target="_blank" rel="noopener noreferrer">View Job</a>` : ''}
+        </div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;gap:1.5rem;">
+        <div class="card">
+          <div class="card-body" style="text-align:center;">
+            <svg width="200" height="200" viewBox="0 0 200 200" style="max-width:100%;">
+              <circle cx="100" cy="100" r="78" fill="none" stroke="#E2E8F0" stroke-width="16"/>
+              <circle cx="100" cy="100" r="78" fill="none" stroke="${ringColour(a.matchScore)}" stroke-width="16"
+                      stroke-linecap="round" stroke-dasharray="490"
+                      stroke-dashoffset="${490 - (490 * a.matchScore / 100)}"
+                      transform="rotate(-90 100 100)"/>
+              <text x="100" y="112" text-anchor="middle" font-size="42" font-weight="800" fill="#1E293B">${a.matchScore}%</text>
+            </svg>
+            <p class="text-sm" style="color:var(--slate-500);">
+              How well your published portfolio evidences this role. Not a prediction of being hired.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Breakdown</h2></div>
+          <div class="card-body">
+            ${bar('Skills match', a.skillsMatch, 'green')}
+            ${bar('Project relevance', a.projectsMatch, 'primary')}
+            ${bar('Requirements met', a.requirementsMatch, 'amber')}
+            <p class="text-sm mt-3" style="color:var(--slate-600);">${esc(a.tailoredSummary || '')}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-6">
+        <div class="card-header"><h2 class="card-title">Skill comparison</h2></div>
+        <div class="card-body">
+          <div class="table-wrap"><table>
+            <thead><tr><th>Required skill</th><th>Your portfolio</th></tr></thead>
+            <tbody>
+              ${strong.map(s => `<tr><td>${esc(s)}</td><td><span class="badge badge-success">Strong — demonstrated</span></td></tr>`).join('')}
+              ${partial.map(s => `<tr><td>${esc(s)}</td><td><span class="badge badge-warning">Partial — listed, not demonstrated</span></td></tr>`).join('')}
+              ${missing.map(s => `<tr><td>${esc(s)}</td><td><span class="badge badge-danger">Not demonstrated in your portfolio</span></td></tr>`).join('')}
+              ${(!strong.length && !partial.length && !missing.length)
+                ? '<tr><td colspan="2" class="text-sm">No specific skills were extracted from this posting.</td></tr>' : ''}
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="grid-2 mt-6" style="align-items:start;gap:1.5rem;">
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Portfolio strengths</h2></div>
+          <div class="card-body">
+            ${strong.length
+              ? strong.map(s => `<div class="text-sm mb-2">✓ ${esc(s)} — shown in a project or role</div>`).join('')
+              : '<p class="text-sm" style="color:var(--slate-500);">Nothing this posting asks for is demonstrated yet.</p>'}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Portfolio gaps</h2></div>
+          <div class="card-body">
+            ${(partial.length || missing.length)
+              ? [...partial.map(s => `<div class="text-sm mb-2">◐ ${esc(s)} — listed but not demonstrated</div>`),
+                 ...missing.map(s => `<div class="text-sm mb-2">⚠ ${esc(s)} — not demonstrated in your current portfolio</div>`)].join('')
+              : '<p class="text-sm" style="color:var(--slate-500);">No gaps found for this posting.</p>'}
+            <p class="text-xs mt-3" style="color:var(--slate-400);">
+              These describe what your portfolio shows, not what you know.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-6">
+        <div class="card-header"><h2 class="card-title">Most relevant projects</h2></div>
+        <div class="card-body">
+          ${(a.recommendedProjects || []).length
+            ? a.recommendedProjects.map(p => `
+              <div class="mb-4">
+                <div class="flex items-center justify-between">
+                  <strong>${esc(p.title)}</strong>
+                  <span class="badge badge-success">${p.relevanceScore}% relevant</span>
+                </div>
+                <p class="text-sm" style="color:var(--slate-500);">${esc(p.reason || '')}</p>
+                ${(p.matchedSkills || []).length ? `<div class="flex mt-1" style="flex-wrap:wrap;gap:0.25rem;">
+                  ${p.matchedSkills.map(s => `<span class="tag tag-green">${esc(s)}</span>`).join('')}</div>` : ''}
+              </div>`).join('')
+            : '<p class="text-sm" style="color:var(--slate-500);">None of your projects overlap this posting yet.</p>'}
+        </div>
+      </div>
+
+      <div class="card mt-6">
+        <div class="card-header"><h2 class="card-title">Improve your match</h2></div>
+        <div class="card-body">
+          <div class="flex items-center gap-3" style="flex-wrap:wrap;">
+            <div><div class="text-xs" style="color:var(--slate-500);">CURRENT</div><strong style="font-size:1.5rem;">${a.matchScore}%</strong></div>
+            <span style="color:var(--slate-400);">→</span>
+            <div><div class="text-xs" style="color:var(--slate-500);">ESTIMATED AFTER IMPROVEMENTS</div>
+              <strong style="font-size:1.5rem;color:var(--success);">${potential}%</strong></div>
+          </div>
+          <p class="text-xs mt-2" style="color:var(--slate-400);">
+            An estimate of how the score could move if your portfolio demonstrated more of what this
+            posting asks for. Not a guarantee.
+          </p>
+          <ol class="mt-4" style="padding-left:1.25rem;">
+            ${recs.map(r => `<li class="text-sm mb-2">${r}</li>`).join('')}
+          </ol>
+          <div class="flex gap-2 mt-4" style="flex-wrap:wrap;">
+            <a class="btn btn-sm btn-secondary" href="projects.html">Edit projects</a>
+            <a class="btn btn-sm btn-secondary" href="profile.html">Edit profile</a>
+            <a class="btn btn-sm btn-primary" href="builder.html">Rebuild portfolio</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-6">
+        <div class="card-header"><h2 class="card-title">Requirements checklist</h2></div>
+        <div class="card-body">
+          ${(a.requirements || []).length
+            ? a.requirements.map(r => `<div class="text-sm mb-2">${r.met ? '✓' : '○'} ${esc(r.text)}</div>`).join('')
+            : '<p class="text-sm" style="color:var(--slate-500);">No structured requirements were extracted.</p>'}
+        </div>
+      </div>`;
+  }
+
+  load();
+</script>
 </body>
 </html>

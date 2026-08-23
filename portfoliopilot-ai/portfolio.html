@@ -4,130 +4,114 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Portfolio — PortfolioPilot AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <div class="public-portfolio">
-    <!-- Nav -->
-    <nav class="public-nav">
-      <div class="container">
-        <a href="#" class="logo" id="navName">Alex Rivera</a>
-        <div class="nav-links">
-          <a href="#about">About</a>
-          <a href="#skills">Skills</a>
-          <a href="#projects">Projects</a>
-          <a href="#education">Education</a>
-          <a href="#contact">Contact</a>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="window.print()">Download CV</button>
-      </div>
-    </nav>
 
-    <!-- Hero -->
-    <section class="public-hero" id="about">
-      <div class="container">
-        <div class="public-avatar" id="avatar">A</div>
-        <h1 id="name">Alex Rivera</h1>
-        <p class="title" id="title">Full-Stack Developer</p>
-        <p class="bio" id="bio"></p>
-        <p class="mt-2 text-sm" style="color:var(--slate-400);" id="location"></p>
-      </div>
-    </section>
+  <!--
+    PUBLISHED PUBLIC PORTFOLIO — no authentication required.
 
-    <!-- Skills -->
-    <section class="public-section" id="skills">
-      <div class="container">
-        <h2>Skills</h2>
-        <div class="skills-cloud" id="skillsCloud"></div>
-      </div>
-    </section>
-
-    <!-- Projects -->
-    <section class="public-section" id="projects" style="background:var(--slate-50);">
-      <div class="container">
-        <h2>Featured Projects</h2>
-        <div class="project-grid" id="projectsGrid" style="max-width:900px;margin:0 auto;"></div>
-      </div>
-    </section>
-
-    <!-- Education -->
-    <section class="public-section" id="education">
-      <div class="container" style="max-width:600px;margin:0 auto;text-align:center;">
-        <h2>Education</h2>
-        <div id="eduList"></div>
-      </div>
-    </section>
-
-    <!-- Contact -->
-    <section class="public-section" id="contact" style="background:var(--slate-50);">
-      <div class="container text-center">
-        <h2>Get in touch</h2>
-        <p style="color:var(--slate-500);margin-bottom:1.5rem;" id="contactEmail"></p>
-        <div class="flex justify-center gap-3">
-          <a href="#" class="btn btn-secondary">GitHub</a>
-          <a href="#" class="btn btn-secondary">LinkedIn</a>
-          <a href="mailto:" class="btn btn-primary" id="emailBtn">Email Me</a>
-        </div>
-      </div>
-    </section>
-
-    <footer class="landing-footer">
-      <div class="container">
-        <p>Built with <a href="index.html">PortfolioPilot AI</a></p>
-      </div>
-    </footer>
+    Rendered by the SAME PPRender module that draws the builder's live preview
+    and preview.html, so what the user previewed is exactly what a recruiter
+    sees. The page used to hand-build its own markup from localStorage, which
+    meant it was neither shareable nor consistent with the preview.
+  -->
+  <div id="portfolioRoot">
+    <div class="preview-loading">Loading portfolio…</div>
   </div>
 
+  <script src="js/api.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/portfolio-render.js"></script>
   <script>
-    // Public page — no auth required
-    const profile = PP.getProfile();
-    const match = PP.getLastMatch();
-    const recIds = match?.recommendedProjects || [];
+    /*
+     * Username resolution:
+     *   ?u=<username>  the shareable form, works signed out
+     *   otherwise      the signed-in user's own published portfolio
+     *
+     * The public endpoint only ever serves a portfolio whose isPublished flag
+     * is true, and returns an explicit allow-list of fields — no account email,
+     * no phone, no ids.
+     */
+    const root = document.getElementById('portfolioRoot');
 
-    document.getElementById('navName').textContent = profile.name || 'Portfolio';
-    document.getElementById('avatar').textContent = (profile.name || 'A').charAt(0).toUpperCase();
-    document.getElementById('name').textContent = profile.name || 'Your Name';
-    document.getElementById('title').textContent = profile.title || 'Developer';
-    document.getElementById('bio').textContent = profile.bio || '';
-    document.getElementById('location').textContent = profile.location || '';
-    document.getElementById('contactEmail').textContent = profile.email || '';
-    document.getElementById('emailBtn').href = 'mailto:' + (profile.email || '');
+    function fail(message, hint) {
+      root.innerHTML =
+        '<div class="preview-empty">'
+        + '<h1>' + PPRender.esc(message) + '</h1>'
+        + (hint ? '<p>' + PPRender.esc(hint) + '</p>' : '')
+        + '</div>';
+    }
 
-    document.getElementById('skillsCloud').innerHTML =
-      (profile.skills || []).map(s => `<span class="skill-pill">${s.name}</span>`).join('') ||
-      '<span style="color:var(--slate-400);">No skills listed</span>';
+    async function load() {
+      const username = new URLSearchParams(window.location.search).get('u');
+      let payload;
 
-    let projects = (profile.projects || []).filter(p => p.includeInPortfolio || recIds.includes(p.id));
-    projects.sort((a, b) => (recIds.includes(a.id) ? 0 : 1) - (recIds.includes(b.id) ? 0 : 1));
+      try {
+        if (username) {
+          payload = await PPApi.portfolio.public(username);
+        } else {
+          const mine = await PP.portfolios.published();
+          if (!mine) throw new Error('No portfolio has been published yet.');
+          payload = await PPApi.portfolio.public(mine.username);
+        }
+      } catch (err) {
+        fail('Portfolio not available', err.message);
+        return;
+      }
 
-    document.getElementById('projectsGrid').innerHTML = projects.length
-      ? projects.map(p => `
-          <div class="project-card">
-            <div class="card-body">
-              <h3>${p.title}</h3>
-              <p>${p.description || ''}</p>
-              <div class="tech-tags">${(p.tech || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
-              <div class="flex gap-2 mt-2">
-                ${p.live ? `<a href="${p.live}" target="_blank" class="btn btn-sm btn-primary">Live Demo</a>` : ''}
-                ${p.repo ? `<a href="${p.repo}" target="_blank" class="btn btn-sm btn-secondary">Code</a>` : ''}
-              </div>
-            </div>
-          </div>
-        `).join('')
-      : '<p style="text-align:center;color:var(--slate-500);grid-column:1/-1;">No featured projects yet.</p>';
+      /*
+       * The public endpoint returns an already-projected shape. Map it onto the
+       * renderer's input contract rather than giving PPRender a second code
+       * path — one renderer, one set of templates.
+       */
+      const owner = payload.owner || {};
+      const data = PPRender.buildData({
+        profile: {
+          name: owner.fullName,
+          professionalTitle: owner.professionalTitle,
+          bio: owner.bio,
+          location: owner.location,
+          avatarUrl: owner.avatarUrl,
+          contact: {
+            publicEmail: owner.publicEmail,
+            website: owner.website,
+            github: owner.github,
+            linkedin: owner.linkedin,
+            twitter: owner.twitter
+          },
+          skills: payload.skills || [],
+          education: payload.education || [],
+          experience: payload.experience || [],
+          certificates: payload.certificates || []
+        },
+        projects: payload.projects || [],
+        portfolio: {
+          templateKey: payload.templateKey,
+          sections: payload.sections,
+          sectionOrder: payload.sectionOrder,
+          primaryColor: payload.theme && payload.theme.primaryColor,
+          accentColor: payload.theme && payload.theme.accentColor,
+          darkMode: payload.theme && payload.theme.darkMode,
+          // Custom-template surfaces, so a published Custom portfolio keeps the
+          // palette the author chose in the builder.
+          backgroundColor: payload.theme && payload.theme.backgroundColor,
+          surfaceColor: payload.theme && payload.theme.surfaceColor,
+          inkColor: payload.theme && payload.theme.inkColor
+        },
+        template: { name: payload.templateKey }
+      });
 
-    document.getElementById('eduList').innerHTML =
-      (profile.education || []).map(e => `
-        <div style="margin-bottom:1rem;">
-          <div class="font-semibold">${e.degree}</div>
-          <div style="color:var(--slate-500);">${e.school} · ${e.year}</div>
-        </div>
-      `).join('') || '<p style="color:var(--slate-500);">No education listed.</p>';
+      PPRender.applyTheme(data, document.documentElement);
+      root.innerHTML = PPRender.renderFull(data);
+      PPRender.enableSmoothScroll(root);
 
-    // Update page title
-    document.title = (profile.name || 'Portfolio') + ' — PortfolioPilot AI';
+      document.title = (data.owner.fullName || 'Portfolio') + ' — PortfolioPilot AI';
+    }
+
+    load();
   </script>
 </body>
 </html>

@@ -47,23 +47,10 @@
                 <h2 class="card-title">Template</h2>
               </div>
               <div class="card-body">
+                <!-- Populated from GET /api/templates. The ids used to be
+                     hardcoded t1-t4, which matched nothing in the database. -->
                 <div class="template-grid" id="templateGrid">
-                  <div class="template-card selected" data-id="t1">
-                    <div class="preview">Minimal Pro</div>
-                    <div class="name">Minimal Pro</div>
-                  </div>
-                  <div class="template-card" data-id="t2">
-                    <div class="preview" style="background:linear-gradient(135deg,#4F46E5,#818CF8);color:white;">Modern</div>
-                    <div class="name">Modern Gradient</div>
-                  </div>
-                  <div class="template-card" data-id="t3">
-                    <div class="preview" style="background:#F1F5F9;">Classic ATS</div>
-                    <div class="name">Classic ATS</div>
-                  </div>
-                  <div class="template-card" data-id="t4">
-                    <div class="preview" style="background:#0F172A;color:#E2E8F0;">Creative Dark</div>
-                    <div class="name">Creative Dark</div>
-                  </div>
+                  <div class="text-sm" style="color:var(--slate-400);">Loading templates...</div>
                 </div>
               </div>
             </div>
@@ -78,11 +65,69 @@
                 <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="projects" checked /> Projects</label>
                 <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="education" checked /> Education</label>
                 <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="experience" checked /> Experience</label>
+                <label class="flex items-center gap-2 mb-3" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="certificates" /> Certificates</label>
                 <label class="flex items-center gap-2" style="cursor:pointer;"><input type="checkbox" class="section-toggle" value="contact" checked /> Contact</label>
+                <p class="form-hint mt-3" id="sectionHint" style="font-size:0.8125rem;"></p>
               </div>
             </div>
 
-            <a href="preview.html" class="btn btn-primary btn-lg btn-block">Generate Portfolio → Preview</a>
+            <!--
+              CUSTOM TEMPLATE PANEL
+
+              Shown only when the "Custom" template is selected. Lets the user
+              build their own palette and import/export it as a small JSON theme
+              file.
+
+              Deliberately NOT an upload of HTML/CSS — see the note rendered at
+              the bottom of this card and the explanation in the handler below.
+            -->
+            <div class="card mb-6" id="customPanel" style="display:none;">
+              <div class="card-header">
+                <h2 class="card-title">Custom colours</h2>
+              </div>
+              <div class="card-body">
+                <div class="grid-2" style="gap:0.75rem;">
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Background</span>
+                    <input type="color" class="custom-color" id="cBackground" value="#ffffff" />
+                  </label>
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Cards</span>
+                    <input type="color" class="custom-color" id="cSurface" value="#f8fafc" />
+                  </label>
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Text</span>
+                    <input type="color" class="custom-color" id="cInk" value="#334155" />
+                  </label>
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Accent</span>
+                    <input type="color" class="custom-color" id="cPrimary" value="#4f46e5" />
+                  </label>
+                </div>
+
+                <label class="flex items-center gap-2 mt-2" style="cursor:pointer;">
+                  <input type="checkbox" id="cDark" /> Dark mode defaults
+                </label>
+
+                <div class="flex gap-2 mt-4" style="flex-wrap:wrap;">
+                  <button class="btn btn-sm btn-secondary" id="uploadThemeBtn">Upload theme…</button>
+                  <button class="btn btn-sm btn-ghost" id="downloadThemeBtn">Download theme</button>
+                  <input type="file" id="themeFile" accept="application/json,.json" hidden />
+                </div>
+
+                <p class="form-hint mt-3" style="font-size:0.75rem;">
+                  Themes are small JSON colour files, not HTML or CSS. Uploading a
+                  stylesheet would mean running someone else's code on every visitor's
+                  browser, so it is not accepted.
+                </p>
+                <p class="form-hint" id="themeStatus" style="font-size:0.75rem;"></p>
+              </div>
+            </div>
+
+            <button id="generateBtn" class="btn btn-primary btn-lg btn-block">Generate Portfolio &rarr; Preview</button>
+            <p class="form-hint mt-2" id="publishResult" style="font-size:0.8125rem;text-align:center;">
+              Creates a private draft you can review before publishing.
+            </p>
           </div>
 
           <!-- Live preview hint -->
@@ -99,64 +144,341 @@
     </div>
   </div>
 
+  <script src="js/api.js"></script>
   <script src="js/app.js"></script>
+  <!-- Shared renderer: the live preview below and preview.html use the SAME
+       data builder and the SAME template logic, so they cannot diverge. -->
+  <script src="js/portfolio-render.js"></script>
   <script>
     if (!PP.requireAuth()) throw new Error('redirect');
     PP.initAppLayout('builder');
 
-    const profile = PP.getProfile();
-    let selected = PP.getSelectedTemplate();
+    // Profile and projects are loaded from the API in loadPortfolioData()
+    // below; the localStorage cache is only a fallback for offline rendering.
 
-    // Template selection
-    document.querySelectorAll('.template-card').forEach(card => {
-      if (card.dataset.id === selected) card.classList.add('selected');
-      else card.classList.remove('selected');
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selected = card.dataset.id;
-        PP.setSelectedTemplate(selected);
-        updatePreview();
+    // Real templates loaded from GET /api/templates. The old hardcoded t1-t4
+    // ids matched nothing in the database, so the choice could never be saved.
+    let templates = [];
+    let selectedKey = null;
+
+    const esc = (v) => String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    const currentTemplate = () => templates.find(t => t.templateKey === selectedKey) || null;
+
+    async function loadTemplates() {
+      const grid = document.getElementById('templateGrid');
+      try {
+        templates = await PP.listTemplates();
+      } catch (err) {
+        grid.innerHTML = '<div class="text-sm" style="color:var(--danger);">Could not load templates: '
+          + esc(err.message) + '</div>';
+        return;
+      }
+      if (!templates.length) {
+        grid.innerHTML = '<div class="text-sm" style="color:var(--slate-500);">No active templates. Seed the database.</div>';
+        return;
+      }
+
+      // Preselect whatever the user's existing portfolio already uses, so the
+      // builder opens showing their real current state rather than a default.
+      let existing = null;
+      try { existing = await PP.portfolios.published(); } catch (e) { /* none yet */ }
+      selectedKey = (existing && existing.templateKey)
+        || PP.getSelectedTemplate()
+        || templates[0].templateKey;
+      if (!templates.some(t => t.templateKey === selectedKey)) {
+        selectedKey = templates[0].templateKey;
+      }
+
+      grid.innerHTML = templates.map(t => `
+        <div class="template-card${t.templateKey === selectedKey ? ' selected' : ''}" data-key="${esc(t.templateKey)}">
+          <div class="preview" style="background:${esc(t.primaryColor || '#F1F5F9')};color:${t.darkMode || t.primaryColor ? '#fff' : 'var(--slate-700)'};">${esc(t.name)}</div>
+          <div class="name">${esc(t.name)}</div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.template-card').forEach(card => {
+        card.addEventListener('click', () => {
+          grid.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedKey = card.dataset.key;
+          PP.setSelectedTemplate(selectedKey);
+          applyTemplateConstraints();
+          showCustomPanel();
+          updatePreview();
+        });
       });
-    });
+
+      // Restore the saved custom palette so re-opening the builder does not
+      // silently reset the user's colours to the defaults.
+      if (existing) {
+        if (existing.backgroundColor) document.getElementById('cBackground').value = existing.backgroundColor;
+        if (existing.surfaceColor) document.getElementById('cSurface').value = existing.surfaceColor;
+        if (existing.inkColor) document.getElementById('cInk').value = existing.inkColor;
+        if (existing.primaryColor) document.getElementById('cPrimary').value = existing.primaryColor;
+        document.getElementById('cDark').checked = !!existing.darkMode;
+      }
+
+      applyTemplateConstraints();
+      showCustomPanel();
+      updatePreview();
+    }
+
+    /**
+     * A template can only render the sections it declares in availableSections.
+     * The backend rejects anything else with a 400, so the unsupported toggles
+     * are disabled here rather than letting the user hit an error on publish.
+     */
+    function applyTemplateConstraints() {
+      const tpl = currentTemplate();
+      const available = (tpl && tpl.availableSections) || [];
+      const unsupported = [];
+
+      document.querySelectorAll('.section-toggle').forEach(cb => {
+        const ok = available.includes(cb.value);
+        cb.disabled = !ok;
+        if (!ok) { cb.checked = false; unsupported.push(cb.value); }
+        cb.parentElement.style.opacity = ok ? '1' : '0.45';
+      });
+
+      document.getElementById('sectionHint').textContent = unsupported.length
+        ? `"${tpl.name}" cannot render: ${unsupported.join(', ')}.`
+        : '';
+    }
 
     document.querySelectorAll('.section-toggle').forEach(cb => {
       cb.addEventListener('change', updatePreview);
     });
 
-    function updatePreview() {
-      const sections = Array.from(document.querySelectorAll('.section-toggle:checked')).map(c => c.value);
-      const match = PP.getLastMatch();
-      const recIds = match?.recommendedProjects || [];
-      const projects = (profile.projects || []).filter(p => p.includeInPortfolio || recIds.includes(p.id));
+    /* ------------------------------------------------------------------
+     * CUSTOM TEMPLATE
+     *
+     * "Upload your own template" is implemented as an importable THEME —
+     * a small JSON file of colours — rather than an HTML/CSS upload.
+     *
+     * That is a deliberate security decision, not a shortcut. Accepting a
+     * stylesheet or markup means executing third-party code inside every
+     * visitor's browser on a page that renders the author's own data: it
+     * defeats the output escaping everywhere else, and `background:
+     * url(...)` alone is enough to exfiltrate. Supporting it safely needs a
+     * CSS parser with an allow-list, a sandboxed origin and admin review —
+     * none of which exist here yet.
+     *
+     * Colours are data, so they can be imported safely: each value is
+     * validated as strict hex on the client, again by Bean Validation, and
+     * again by the collection validator before it can reach a CSS variable.
+     * ------------------------------------------------------------------ */
+    const HEX = /^#[0-9a-fA-F]{6}$/;
+    const customInputs = ['cBackground', 'cSurface', 'cInk', 'cPrimary'];
 
-      document.getElementById('livePreview').innerHTML = `
-        <div style="border:1px solid var(--slate-200);border-radius:0.5rem;padding:1.25rem;background:var(--slate-50);">
-          <div style="text-align:center;margin-bottom:1rem;">
-            <div style="width:56px;height:56px;border-radius:50%;background:var(--primary);color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.25rem;">
-              ${(profile.name || 'A').charAt(0)}
-            </div>
-            <div class="font-bold mt-2">${profile.name || 'Your Name'}</div>
-            <div class="text-sm" style="color:var(--primary);">${profile.title || 'Title'}</div>
-          </div>
-          ${sections.includes('about') ? `<p class="text-sm mb-3" style="color:var(--slate-600);">${(profile.bio || '').slice(0, 120)}...</p>` : ''}
-          ${sections.includes('skills') ? `
-            <div class="mb-3">
-              <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">SKILLS</div>
-              <div class="flex" style="flex-wrap:wrap;gap:0.25rem;">
-                ${(profile.skills || []).slice(0, 6).map(s => `<span class="tag">${s.name}</span>`).join('')}
-              </div>
-            </div>` : ''}
-          ${sections.includes('projects') ? `
-            <div>
-              <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">PROJECTS</div>
-              ${projects.slice(0, 2).map(p => `<div class="text-sm font-medium">${p.title}</div>`).join('') || '<div class="text-sm" style="color:var(--slate-400);">No projects</div>'}
-            </div>` : ''}
-          <div class="text-xs mt-4" style="color:var(--slate-400);">Template: ${selected} · Sections: ${sections.join(', ')}</div>
-        </div>
-      `;
+    function isCustom() { return selectedKey === 'CUSTOM'; }
+
+    function customTheme() {
+      return {
+        background: document.getElementById('cBackground').value,
+        surface: document.getElementById('cSurface').value,
+        ink: document.getElementById('cInk').value,
+        primary: document.getElementById('cPrimary').value,
+        dark: document.getElementById('cDark').checked
+      };
     }
-    updatePreview();
+
+    function showCustomPanel() {
+      document.getElementById('customPanel').style.display = isCustom() ? '' : 'none';
+    }
+
+    customInputs.forEach(id => {
+      document.getElementById(id).addEventListener('input', updatePreview);
+    });
+    document.getElementById('cDark').addEventListener('change', () => {
+      // Flip the surface defaults so switching mode is one click, not four.
+      const dark = document.getElementById('cDark').checked;
+      document.getElementById('cBackground').value = dark ? '#0b1120' : '#ffffff';
+      document.getElementById('cSurface').value = dark ? '#111c34' : '#f8fafc';
+      document.getElementById('cInk').value = dark ? '#e2e8f0' : '#334155';
+      updatePreview();
+    });
+
+    document.getElementById('uploadThemeBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('themeFile').click();
+    });
+
+    document.getElementById('themeFile').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      const status = document.getElementById('themeStatus');
+      if (!file) return;
+
+      // Bound the read: a theme is a few hundred bytes, so anything large is
+      // either a mistake or an attempt to exhaust memory.
+      if (file.size > 16 * 1024) {
+        status.textContent = 'That file is too large for a theme (max 16 KB).';
+        e.target.value = '';
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(await file.text());
+        const fields = { background: 'cBackground', surface: 'cSurface', ink: 'cInk', primary: 'cPrimary' };
+        let applied = 0;
+
+        for (const [key, id] of Object.entries(fields)) {
+          const value = parsed[key];
+          // Silently ignore anything that is not a hex colour. This is the
+          // gate that stops a crafted file reaching a CSS custom property.
+          if (typeof value === 'string' && HEX.test(value.trim())) {
+            document.getElementById(id).value = value.trim().toLowerCase();
+            applied++;
+          }
+        }
+        if (typeof parsed.dark === 'boolean') { document.getElementById('cDark').checked = parsed.dark; }
+
+        status.textContent = applied
+          ? `Applied ${applied} colour${applied === 1 ? '' : 's'} from ${file.name}.`
+          : 'No valid hex colours found in that file.';
+        updatePreview();
+      } catch (err) {
+        status.textContent = 'That file is not valid JSON.';
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('downloadThemeBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      const blob = new Blob([JSON.stringify(customTheme(), null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'portfoliopilot-theme.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    /*
+     * Generate a TEMPORARY portfolio and open the full preview.
+     *
+     * It is saved as a draft (isPublished stays false), so generating never
+     * puts anything on the public internet. Publishing is a separate, explicit
+     * action on preview.html.
+     *
+     * The existing draft is reused rather than creating a new one on every
+     * click, which would otherwise leave a pile of orphaned portfolios behind.
+     */
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('generateBtn');
+      const result = document.getElementById('publishResult');
+      const sections = {};
+      document.querySelectorAll('.section-toggle').forEach(cb => { sections[cb.value] = cb.checked; });
+
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      result.textContent = '';
+
+      try {
+        // Custom colours ride along on the same update, so they persist with
+        // the portfolio and reappear on the preview and the published site.
+        const payload = { templateKey: selectedKey, sections };
+        if (isCustom()) {
+          const theme = customTheme();
+          payload.backgroundColor = theme.background;
+          payload.surfaceColor = theme.surface;
+          payload.inkColor = theme.ink;
+          payload.primaryColor = theme.primary;
+          payload.darkMode = theme.dark;
+        }
+
+        let portfolio = await findExistingPortfolio();
+
+        if (!portfolio || !portfolio.id) {
+          portfolio = await PP.generatePortfolio(selectedKey);
+        }
+        portfolio = await PP.portfolios.update(portfolio.id, payload);
+
+        // A pointer, not a copy of the data — the preview re-reads everything
+        // from the API so it can never show stale content.
+        localStorage.setItem('pp_portfolio_id', portfolio.id);
+        window.location.href = 'preview.html?id=' + encodeURIComponent(portfolio.id);
+      } catch (err) {
+        result.textContent = err.message || 'Could not generate the portfolio';
+        PP.showToast(err.message || 'Could not generate the portfolio', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Generate Portfolio \u2192 Preview';
+      }
+    });
+
+    /** The draft this browser last generated, else the published one, else none. */
+    async function findExistingPortfolio() {
+      const savedId = localStorage.getItem('pp_portfolio_id');
+      if (savedId) {
+        try { return await PP.portfolios.get(savedId); }
+        catch (e) { localStorage.removeItem('pp_portfolio_id'); }
+      }
+      try { return await PP.portfolios.published(); }
+      catch (e) { return null; }
+    }
+
+    /*
+     * Live preview.
+     *
+     * Renders through PPRender — the SAME data builder and template logic the
+     * full preview and the published site use. Previously this page hand-built
+     * its own markup from the localStorage cache, which is why the small
+     * preview and the real portfolio never looked alike.
+     *
+     * Profile and projects are fetched once from the API and reused; only the
+     * template and section toggles change as the user clicks.
+     */
+    let liveProfile = null;
+    let liveProjects = [];
+
+    async function loadPortfolioData() {
+      try {
+        [liveProfile, liveProjects] = await Promise.all([
+          PPApi.profile.get(),
+          PPApi.projects.list()
+        ]);
+      } catch (err) {
+        // Fall back to the cached profile so the builder still renders offline.
+        liveProfile = PP.getProfile();
+        liveProjects = liveProfile.projects || [];
+      }
+    }
+
+    function updatePreview() {
+      if (!liveProfile) return;
+
+      const sections = {};
+      document.querySelectorAll('.section-toggle').forEach(cb => { sections[cb.value] = cb.checked; });
+
+      const theme = isCustom() ? customTheme() : null;
+
+      const data = PPRender.buildData({
+        profile: liveProfile,
+        projects: liveProjects,
+        template: currentTemplate() || {},
+        templateOverride: selectedKey,
+        sectionsOverride: sections,
+        customTheme: theme
+      });
+
+      // The colour pickers feed straight into the same theme object the saved
+      // portfolio uses, so the live preview shows the exact published result.
+      if (theme) {
+        data.theme.primary = theme.primary;
+        data.theme.dark = theme.dark;
+      }
+
+      const host = document.getElementById('livePreview');
+      PPRender.applyTheme(data, host);
+      host.innerHTML = PPRender.renderCompact(data);
+    }
+
+    (async function init() {
+      await loadPortfolioData();
+      await loadTemplates();
+    })();
   </script>
 </body>
 </html>

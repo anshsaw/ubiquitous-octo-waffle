@@ -1,0 +1,24 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
