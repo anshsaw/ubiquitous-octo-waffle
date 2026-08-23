@@ -15,6 +15,10 @@ import com.portfoliopilot.repository.ProjectRepository;
 import com.portfoliopilot.util.SkillNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -48,6 +52,7 @@ public class PublicPortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final ProfileRepository profileRepository;
     private final ProjectRepository projectRepository;
+    private final MongoTemplate mongoTemplate;
 
     public PublicPortfolioResponse getByUsername(String rawUsername) {
         String username = SkillNormalizer.normalizeUsername(rawUsername);
@@ -84,16 +89,18 @@ public class PublicPortfolioService {
      * Fire-and-forget view counter.
      *
      * <p>Async and exception-swallowing on purpose: analytics must never slow
-     * down or break the rendering of a public page.
+     * down or break the rendering of a public page. Uses a direct $inc so the
+     * portfolio already fetched by {@link #getByUsername} is not loaded again.
      */
     @Async
     public void recordView(String username) {
         try {
-            portfolioRepository.findByUsernameAndPublishedTrueAndDeletedFalse(username)
-                    .ifPresent(portfolio -> {
-                        portfolio.setViewCount((portfolio.getViewCount() == null ? 0 : portfolio.getViewCount()) + 1);
-                        portfolioRepository.save(portfolio);
-                    });
+            mongoTemplate.updateFirst(
+                    Query.query(Criteria.where("username").is(username)
+                            .and("isPublished").is(true)
+                            .and("deleted").is(false)),
+                    new Update().inc("viewCount", 1),
+                    Portfolio.class);
         } catch (RuntimeException ex) {
             log.debug("View count update failed for {}: {}", username, ex.getMessage());
         }

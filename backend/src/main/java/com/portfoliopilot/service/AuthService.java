@@ -102,19 +102,32 @@ public class AuthService {
         // duplicate is caught by DuplicateKeyException in GlobalExceptionHandler.
         user = userRepository.save(user);
 
-        profileRepository.save(Profile.builder()
-                .userId(user.getId())
-                .fullName(user.getName())
-                .contact(new ContactInfo())
-                .skills(new ArrayList<>())
-                .skillIndex(new ArrayList<>())
-                .education(new ArrayList<>())
-                .experience(new ArrayList<>())
-                .certificates(new ArrayList<>())
-                .profileHealth(ProfileService.computeProfileHealth(null, 0))
-                .createdAt(now)
-                .updatedAt(now)
-                .build());
+        try {
+            profileRepository.save(Profile.builder()
+                    .userId(user.getId())
+                    .fullName(user.getName())
+                    .contact(new ContactInfo())
+                    .skills(new ArrayList<>())
+                    .skillIndex(new ArrayList<>())
+                    .education(new ArrayList<>())
+                    .experience(new ArrayList<>())
+                    .certificates(new ArrayList<>())
+                    .profileHealth(ProfileService.computeProfileHealth(null, 0))
+                    .createdAt(now)
+                    .updatedAt(now)
+                    .build());
+        } catch (RuntimeException ex) {
+            // Standalone MongoDB has no multi-document transactions, so a profile
+            // failure would otherwise leave an orphaned user with no profile -
+            // a permanently broken account. Compensate by removing the user.
+            log.error("Profile creation failed for user {} - rolling back user", user.getId(), ex);
+            try {
+                userRepository.delete(user);
+            } catch (RuntimeException deleteEx) {
+                log.error("Failed to roll back orphaned user {}", user.getId(), deleteEx);
+            }
+            throw ex;
+        }
 
         log.info("Registered user {} ({})", user.getId(), maskEmail(email));
         return issueTokens(user, userAgent, ipAddress);

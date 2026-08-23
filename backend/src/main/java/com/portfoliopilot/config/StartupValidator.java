@@ -65,6 +65,13 @@ public class StartupValidator implements ApplicationRunner {
 
     private void warnOnDevelopmentSecret() {
         if (jwtProperties.isDevelopmentSecret()) {
+            String profiles = System.getenv("SPRING_PROFILES_ACTIVE");
+            boolean isProd = profiles != null && profiles.toLowerCase().contains("prod");
+            if (isProd) {
+                throw new IllegalStateException(
+                        "JWT_SECRET is the development placeholder but SPRING_PROFILES_ACTIVE contains 'prod'. "
+                                + "Set a real JWT_SECRET (openssl rand -base64 48) before running in production.");
+            }
             log.warn("""
 
                     ****************************************************************

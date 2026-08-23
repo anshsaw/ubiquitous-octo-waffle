@@ -45,6 +45,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final CorsProperties corsProperties;
+    private final JwtProperties jwtProperties;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -63,24 +64,32 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(authenticationEntryPoint))
 
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
                         // CORS preflight must never require credentials.
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
                         // --- public -------------------------------------------------
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh").permitAll()
-                        .requestMatchers("/api/public/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/templates").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
+                        auth.requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh").permitAll();
+                        auth.requestMatchers("/api/public/**").permitAll();
+                        auth.requestMatchers(HttpMethod.GET, "/api/templates").permitAll();
+                        auth.requestMatchers("/actuator/health").permitAll();
+
+                        // Swagger: open only with the dev secret so the API surface
+                        // is not enumerable anonymously in production.
+                        if (jwtProperties.isDevelopmentSecret()) {
+                            auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                        } else {
+                            auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").authenticated();
+                        }
 
                         // --- admin --------------------------------------------------
                         // Declared BEFORE the catch-all so it cannot be shadowed.
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        auth.requestMatchers("/api/admin/**").hasRole("ADMIN");
 
                         // --- everything else ----------------------------------------
-                        .requestMatchers("/api/**").authenticated()
-                        .anyRequest().denyAll())
+                        auth.requestMatchers("/api/**").authenticated();
+                        auth.anyRequest().denyAll();
+                    })
 
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

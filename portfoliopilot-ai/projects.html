@@ -100,6 +100,14 @@
     const projectModal = document.getElementById('projectModal');
     const projectForm = document.getElementById('projectForm');
 
+    const esc = (v) => String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const safeUrl = (u) => {
+      try { const p = new URL(u, window.location.href); return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : null; } catch(e){ return null; }
+    };
+    const escId = (id) => String(id).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
     function renderProjects() {
       const profile = PP.getProfile();
       const userNameElem = document.getElementById('userName');
@@ -116,26 +124,28 @@
       }
 
       noProj.classList.add('hidden');
-      grid.innerHTML = projects.map(p => `
+      grid.innerHTML = projects.map(p => {
+        const url = safeUrl(p.link);
+        return `
         <div class="card">
           <div class="card-body flex flex-col justify-between" style="height: 100%;">
             <div>
               <div class="flex items-center justify-between mb-2">
-                <h3 class="font-medium" style="font-size: 1.125rem;">${p.title}</h3>
-                ${p.link ? `<a href="${p.link}" target="_blank" style="font-size: 0.875rem; color: var(--primary);">Link ↗</a>` : ''}
+                <h3 class="font-medium" style="font-size: 1.125rem;">${esc(p.title)}</h3>
+                ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" style="font-size: 0.875rem; color: var(--primary);">Link ↗</a>` : ''}
               </div>
-              <p class="text-sm mb-4" style="color: var(--slate-500); line-height: 1.5;">${p.description || 'No description provided.'}</p>
+              <p class="text-sm mb-4" style="color: var(--slate-500); line-height: 1.5;">${esc(p.description) || 'No description provided.'}</p>
               <div class="flex gap-2 mb-4" style="flex-wrap: wrap;">
-                ${(p.tech || []).map(t => `<span class="tag tag-green">${t}</span>`).join('')}
+                ${(p.tech || []).map(t => `<span class="tag tag-green">${esc(t)}</span>`).join('')}
               </div>
             </div>
             <div class="flex gap-2 pt-3" style="border-top: 1px solid var(--slate-100);">
-              <button class="btn btn-ghost btn-sm" onclick="editProject('${p.id}')">Edit</button>
-              <button class="btn btn-ghost btn-sm" style="color: var(--warning);" onclick="deleteProject('${p.id}')">Delete</button>
+              <button class="btn btn-ghost btn-sm" onclick="editProject('${escId(p.id)}')">Edit</button>
+              <button class="btn btn-ghost btn-sm" style="color: var(--warning);" onclick="deleteProject('${escId(p.id)}')">Delete</button>
             </div>
           </div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     }
 
     // Add / Edit handlers
