@@ -905,15 +905,294 @@ tr:hover td { background: var(--slate-50); }
 .resume-section ul { padding-left: 1.25rem; }
 
 /* ===========================================================================
-   PORTFOLIO TEMPLATES
+   PORTFOLIO RENDERER  (js/portfolio-render.js)
    ---------------------------------------------------------------------------
-   portfolio.html adds a `tpl-<template-key>` class to <body> from the
-   templateKey returned by /api/public/portfolio/{username}, and overrides
-   --primary / --success with that template's theme colours.
+   Shared by the builder's live preview, preview.html and portfolio.html.
+   Markup uses `pp-` classes; the wrapper carries `pp-tpl-<template-key>` and
+   optionally `pp-dark`. Colours come from --pp-primary / --pp-accent, which the
+   renderer sets per template, so the palette is data-driven and this stylesheet
+   stays static.
+   =========================================================================== */
 
-   Without these rules every template rendered identically, which is why
-   changing the template in the builder appeared to do nothing on the published
-   page. Each block below only restyles the PUBLIC portfolio surfaces.
+:root { --pp-primary: #4F46E5; --pp-accent: #10B981; }
+
+.pp-portfolio { background: #fff; color: var(--slate-700); }
+
+/* --- preview page chrome (never part of the portfolio itself) ------------ */
+.preview-bar {
+  position: sticky; top: 0; z-index: 60;
+  background: var(--slate-900); color: #fff;
+  box-shadow: var(--shadow-md);
+}
+.preview-bar-inner {
+  max-width: 1100px; margin: 0 auto; padding: 0.75rem 1.25rem;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.preview-bar-left { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.preview-badge {
+  background: var(--warning); color: #1F2937;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 0.25rem 0.625rem; border-radius: 999px;
+}
+.preview-meta { font-size: 0.875rem; color: #CBD5E1; }
+.preview-bar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.preview-bar .btn-ghost { color: #E2E8F0; }
+.preview-note {
+  max-width: 1100px; margin: 0 auto; padding: 0 1.25rem 0.75rem;
+  font-size: 0.8125rem; color: #94A3B8;
+}
+.preview-note a { color: #A5B4FC; }
+.preview-stage { min-height: 60vh; }
+.preview-loading, .preview-empty { text-align: center; padding: 5rem 1.5rem; color: var(--slate-500); }
+.preview-empty h1 { font-size: 1.5rem; color: var(--slate-800); margin-bottom: 0.5rem; }
+
+/* --- nav ------------------------------------------------------------------ */
+.pp-nav {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 0.875rem 1.5rem;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--slate-200);
+}
+.pp-nav-brand { font-weight: 700; color: var(--slate-900); }
+.pp-nav-links { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.pp-nav-links a { font-size: 0.9375rem; color: var(--slate-600); }
+.pp-nav-links a:hover { color: var(--pp-primary); }
+
+/* --- hero ----------------------------------------------------------------- */
+.pp-hero { text-align: center; padding: 4rem 1.5rem 3rem; }
+.pp-avatar {
+  width: 104px; height: 104px; border-radius: 50%;
+  object-fit: cover; margin: 0 auto 1.25rem; display: block;
+}
+.pp-avatar-initial {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pp-primary); color: #fff;
+  font-size: 2.5rem; font-weight: 700;
+}
+.pp-name { font-size: 2.75rem; font-weight: 800; letter-spacing: -0.03em; color: var(--slate-900); }
+.pp-headline { font-size: 1.125rem; color: var(--pp-primary); font-weight: 500; margin-top: 0.375rem; }
+.pp-location { color: var(--slate-500); margin-top: 0.25rem; font-size: 0.9375rem; }
+.pp-social { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
+
+/* --- sections ------------------------------------------------------------- */
+.pp-main { max-width: 940px; margin: 0 auto; padding: 0 1.5rem; }
+.pp-section { padding: 3rem 0; border-top: 1px solid var(--slate-100); scroll-margin-top: 5rem; }
+.pp-section:first-child { border-top: none; }
+.pp-section-title {
+  font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--slate-500); font-weight: 700; margin-bottom: 1.25rem;
+}
+.pp-bio { font-size: 1.0625rem; line-height: 1.75; color: var(--slate-600); max-width: 68ch; }
+.pp-empty { color: var(--slate-400); font-style: italic; }
+.pp-empty-inline { color: var(--slate-400); font-size: 0.8125rem; }
+.pp-link { color: var(--pp-primary); font-size: 0.875rem; }
+
+/* --- skills --------------------------------------------------------------- */
+.pp-skills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pp-skill {
+  background: var(--slate-100); color: var(--slate-700);
+  padding: 0.375rem 0.875rem; border-radius: 999px;
+  font-size: 0.875rem; font-weight: 500;
+}
+
+/* --- projects ------------------------------------------------------------- */
+.pp-projects { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+.pp-project {
+  border: 1px solid var(--slate-200); border-radius: var(--radius-lg);
+  overflow: hidden; background: #fff;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.pp-project:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.pp-project-image { width: 100%; height: 160px; object-fit: cover; display: block; }
+.pp-project-body { padding: 1.25rem; }
+.pp-project-title { font-size: 1.125rem; font-weight: 600; color: var(--slate-900); }
+.pp-project-period { font-size: 0.8125rem; color: var(--slate-400); margin-top: 0.125rem; }
+.pp-project-desc { font-size: 0.9375rem; color: var(--slate-600); margin-top: 0.5rem; line-height: 1.6; }
+.pp-tech { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.875rem; }
+.pp-tech-tag {
+  font-size: 0.75rem; font-weight: 500;
+  background: var(--primary-light); color: var(--pp-primary);
+  padding: 0.1875rem 0.5rem; border-radius: 0.375rem;
+}
+.pp-project-links { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+/* --- timeline entries (education / experience / certificates) ------------- */
+.pp-timeline { display: flex; flex-direction: column; gap: 1.5rem; }
+.pp-entry-title { font-size: 1.0625rem; font-weight: 600; color: var(--slate-900); }
+.pp-entry-meta { font-size: 0.875rem; color: var(--slate-500); margin-top: 0.125rem; }
+.pp-entry-desc { font-size: 0.9375rem; color: var(--slate-600); margin-top: 0.5rem; }
+.pp-bullets { margin: 0.625rem 0 0 1.125rem; }
+.pp-bullets li { font-size: 0.9375rem; color: var(--slate-600); margin-bottom: 0.25rem; }
+
+/* --- contact + footer ----------------------------------------------------- */
+.pp-contact { display: flex; flex-direction: column; gap: 0.625rem; }
+.pp-contact-item { color: var(--pp-primary); font-size: 1rem; }
+.pp-footer {
+  text-align: center; padding: 2.5rem 1.5rem;
+  border-top: 1px solid var(--slate-200);
+  color: var(--slate-400); font-size: 0.875rem; margin-top: 2rem;
+}
+
+/* --- compact (builder live preview) --------------------------------------- */
+.pp-compact {
+  border: 1px solid var(--slate-200); border-radius: var(--radius);
+  padding: 1.25rem; background: var(--slate-50); font-size: 0.875rem;
+}
+.pp-compact-hero { text-align: center; margin-bottom: 1rem; }
+.pp-compact-avatar {
+  width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+  margin: 0 auto 0.5rem; display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem;
+}
+.pp-compact-name { font-weight: 700; color: var(--slate-800); }
+.pp-compact-headline { color: var(--pp-primary); font-size: 0.8125rem; }
+.pp-compact-bio { color: var(--slate-600); margin-bottom: 0.875rem; font-size: 0.8125rem; }
+.pp-compact-block { margin-bottom: 0.875rem; }
+.pp-compact-label {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--slate-500); margin-bottom: 0.375rem;
+}
+.pp-compact-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.pp-compact-item { font-size: 0.8125rem; font-weight: 500; color: var(--slate-700); }
+.pp-compact-foot { font-size: 0.6875rem; color: var(--slate-400); margin-top: 1rem; }
+
+/* ===========================================================================
+   TEMPLATE VARIANTS
+   Four deliberately different looks driven by one data object.
+   =========================================================================== */
+
+/* --- dark surface, shared by any template whose theme sets darkMode ------- */
+.pp-dark, .pp-dark.pp-portfolio { background: #0B1120; color: #CBD5E1; }
+.pp-dark .pp-nav { background: rgba(11, 17, 32, 0.9); border-bottom-color: #1E293B; }
+.pp-dark .pp-nav-brand, .pp-dark .pp-name, .pp-dark .pp-project-title,
+.pp-dark .pp-entry-title { color: #F8FAFC; }
+.pp-dark .pp-nav-links a, .pp-dark .pp-bio, .pp-dark .pp-project-desc,
+.pp-dark .pp-entry-desc, .pp-dark .pp-bullets li { color: #94A3B8; }
+.pp-dark .pp-section { border-top-color: #1E293B; }
+.pp-dark .pp-project { background: #111C34; border-color: #1E293B; }
+.pp-dark .pp-skill { background: #1E293B; color: #E2E8F0; }
+.pp-dark .pp-tech-tag { background: rgba(124, 58, 237, 0.18); color: #C4B5FD; }
+.pp-dark .pp-footer { border-top-color: #1E293B; }
+.pp-dark.pp-compact { background: #0B1120; border-color: #1E293B; }
+.pp-dark .pp-compact-name { color: #F1F5F9; }
+.pp-dark .pp-compact-item { color: #CBD5E1; }
+
+/* --- MODERN_DEV — "Modern Gradient": gradient hero, floating cards -------- */
+.pp-tpl-modern-dev .pp-hero {
+  background: linear-gradient(160deg, var(--primary-light) 0%, #fff 70%);
+  border-bottom: 1px solid var(--slate-100);
+}
+.pp-tpl-modern-dev .pp-avatar-initial {
+  background: linear-gradient(135deg, var(--pp-primary), var(--pp-accent));
+  box-shadow: 0 10px 30px -10px var(--pp-primary);
+}
+.pp-tpl-modern-dev .pp-name {
+  background: linear-gradient(120deg, var(--pp-primary), var(--pp-accent));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.pp-tpl-modern-dev .pp-project { box-shadow: var(--shadow-sm); }
+.pp-tpl-modern-dev .pp-section-title {
+  color: var(--pp-primary);
+}
+
+/* --- MINIMAL_MONO — "Minimal Pro": typography first, no ornament ---------- */
+.pp-tpl-minimal-mono .pp-hero { text-align: left; padding: 3.5rem 1.5rem 2rem; max-width: 940px; margin: 0 auto; }
+.pp-tpl-minimal-mono .pp-social { justify-content: flex-start; }
+.pp-tpl-minimal-mono .pp-name { font-size: 2.25rem; font-weight: 700; }
+.pp-tpl-minimal-mono .pp-headline { color: var(--slate-600); }
+.pp-tpl-minimal-mono .pp-projects { grid-template-columns: 1fr; gap: 0; }
+.pp-tpl-minimal-mono .pp-project {
+  border: none; border-top: 1px solid var(--slate-200);
+  border-radius: 0; background: transparent;
+}
+.pp-tpl-minimal-mono .pp-project:hover { transform: none; box-shadow: none; }
+.pp-tpl-minimal-mono .pp-project-body { padding: 1.25rem 0; }
+.pp-tpl-minimal-mono .pp-project-image { display: none; }
+.pp-tpl-minimal-mono .pp-skill {
+  background: transparent; border-radius: 0; padding: 0 0.75rem 0 0;
+  border-right: 1px solid var(--slate-300);
+}
+.pp-tpl-minimal-mono .pp-tech-tag { background: transparent; padding: 0; }
+.pp-tpl-minimal-mono .pp-tech-tag::after { content: '·'; margin: 0 0.375rem; color: var(--slate-300); }
+.pp-tpl-minimal-mono .pp-tech-tag:last-child::after { content: ''; }
+
+/* --- CREATIVE_GRID — "Creative Dark": bold, glowing, image-led ------------ */
+.pp-tpl-creative-grid .pp-hero { padding: 5rem 1.5rem 3.5rem; }
+.pp-tpl-creative-grid .pp-name { font-size: 3.5rem; }
+.pp-tpl-creative-grid .pp-avatar { border-radius: 1.5rem; width: 112px; height: 112px; }
+.pp-tpl-creative-grid .pp-avatar-initial {
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, var(--pp-primary), var(--pp-accent));
+  box-shadow: 0 0 42px -6px var(--pp-primary);
+}
+.pp-tpl-creative-grid .pp-projects { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 1.75rem; }
+.pp-tpl-creative-grid .pp-project { border-radius: 1.25rem; border-width: 1px; }
+.pp-tpl-creative-grid .pp-project:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 45px -20px var(--pp-primary);
+  border-color: var(--pp-primary);
+}
+.pp-tpl-creative-grid .pp-project-title { font-size: 1.3125rem; }
+.pp-tpl-creative-grid .pp-section-title { color: var(--pp-accent); }
+
+/* --- CLASSIC_CARD — "Classic ATS": resume-like, high contrast, printable -- */
+.pp-tpl-classic-card .pp-hero {
+  text-align: left; max-width: 940px; margin: 0 auto;
+  padding: 2.5rem 1.5rem 1.5rem; border-bottom: 2px solid var(--slate-800);
+}
+.pp-tpl-classic-card .pp-social { justify-content: flex-start; }
+.pp-tpl-classic-card .pp-name { font-size: 2rem; letter-spacing: 0; }
+.pp-tpl-classic-card .pp-headline { color: var(--slate-700); }
+.pp-tpl-classic-card .pp-section { padding: 1.75rem 0; }
+.pp-tpl-classic-card .pp-section-title {
+  color: var(--slate-900); border-bottom: 1px solid var(--slate-300); padding-bottom: 0.25rem;
+}
+.pp-tpl-classic-card .pp-projects { grid-template-columns: 1fr; gap: 1rem; }
+.pp-tpl-classic-card .pp-project { border-radius: 0.25rem; box-shadow: none; }
+.pp-tpl-classic-card .pp-project:hover { transform: none; }
+.pp-tpl-classic-card .pp-project-image { display: none; }
+.pp-tpl-classic-card .pp-skill { border-radius: 0.25rem; background: var(--slate-100); }
+
+/* --- TIMELINE_PRO: chronology as the spine -------------------------------- */
+.pp-tpl-timeline-pro .pp-timeline { border-left: 2px solid var(--slate-200); padding-left: 1.5rem; }
+.pp-tpl-timeline-pro .pp-entry { position: relative; }
+.pp-tpl-timeline-pro .pp-entry::before {
+  content: ''; position: absolute; left: -1.9375rem; top: 0.4375rem;
+  width: 0.75rem; height: 0.75rem; border-radius: 50%;
+  background: var(--pp-primary); box-shadow: 0 0 0 3px #fff;
+}
+.pp-tpl-timeline-pro .pp-project { border-left: 3px solid var(--pp-primary); }
+
+/* --- responsive ----------------------------------------------------------- */
+@media (max-width: 768px) {
+  .pp-name { font-size: 2rem; }
+  .pp-tpl-creative-grid .pp-name { font-size: 2.25rem; }
+  .pp-hero { padding: 2.5rem 1.25rem 2rem; }
+  .pp-nav { padding: 0.75rem 1rem; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .pp-nav-links { gap: 0.875rem; font-size: 0.875rem; overflow-x: auto; width: 100%; }
+  .pp-main { padding: 0 1.25rem; }
+  .pp-section { padding: 2rem 0; }
+  .pp-projects { grid-template-columns: 1fr; }
+  .preview-bar-inner { flex-direction: column; align-items: flex-start; }
+  .preview-bar-actions { width: 100%; }
+}
+
+/* Never let a long URL or code string force sideways scrolling on a phone. */
+.pp-portfolio, .pp-compact { overflow-wrap: anywhere; }
+
+@media print {
+  .preview-bar, .pp-nav, .pp-project-links, .pp-social { display: none !important; }
+  .pp-portfolio { background: #fff !important; color: #000 !important; }
+}
+
+/* ===========================================================================
+   LEGACY PUBLIC-PAGE TEMPLATE HOOKS
+   ---------------------------------------------------------------------------
+   Kept for any markup still using the older `.public-*` classes.
+   New rendering goes through the `pp-` classes above.
    =========================================================================== */
 
 /* --- Dark mode, shared by any template whose theme sets darkMode --------- */

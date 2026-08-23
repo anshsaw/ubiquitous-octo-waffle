@@ -71,8 +71,10 @@
               </div>
             </div>
 
-            <button id="generateBtn" class="btn btn-primary btn-lg btn-block">Generate &amp; Publish Portfolio</button>
-            <p class="form-hint mt-2" id="publishResult" style="font-size:0.8125rem;text-align:center;"></p>
+            <button id="generateBtn" class="btn btn-primary btn-lg btn-block">Generate Portfolio &rarr; Preview</button>
+            <p class="form-hint mt-2" id="publishResult" style="font-size:0.8125rem;text-align:center;">
+              Creates a private draft you can review before publishing.
+            </p>
           </div>
 
           <!-- Live preview hint -->
@@ -91,11 +93,15 @@
 
   <script src="js/api.js"></script>
   <script src="js/app.js"></script>
+  <!-- Shared renderer: the live preview below and preview.html use the SAME
+       data builder and the SAME template logic, so they cannot diverge. -->
+  <script src="js/portfolio-render.js"></script>
   <script>
     if (!PP.requireAuth()) throw new Error('redirect');
     PP.initAppLayout('builder');
 
-    const profile = PP.getProfile();
+    // Profile and projects are loaded from the API in loadPortfolioData()
+    // below; the localStorage cache is only a fallback for offline rendering.
 
     // Real templates loaded from GET /api/templates. The old hardcoded t1-t4
     // ids matched nothing in the database, so the choice could never be saved.
@@ -181,8 +187,16 @@
       cb.addEventListener('change', updatePreview);
     });
 
-    // Generate the portfolio configuration and publish it in one step, so the
-    // template choice actually reaches /portfolio/{username}.
+    /*
+     * Generate a TEMPORARY portfolio and open the full preview.
+     *
+     * It is saved as a draft (isPublished stays false), so generating never
+     * puts anything on the public internet. Publishing is a separate, explicit
+     * action on preview.html.
+     *
+     * The existing draft is reused rather than creating a new one on every
+     * click, which would otherwise leave a pile of orphaned portfolios behind.
+     */
     document.getElementById('generateBtn').addEventListener('click', async () => {
       const btn = document.getElementById('generateBtn');
       const result = document.getElementById('publishResult');
@@ -194,10 +208,7 @@
       result.textContent = '';
 
       try {
-        // Reuse the existing portfolio if there is one, otherwise create it.
-        // Generating unconditionally would leave a new draft behind on every click.
-        let portfolio = null;
-        try { portfolio = await PP.portfolios.published(); } catch (e) { /* none */ }
+        let portfolio = await findExistingPortfolio();
 
         if (portfolio && portfolio.id) {
           portfolio = await PP.portfolios.update(portfolio.id, { templateKey: selectedKey, sections });
@@ -206,64 +217,79 @@
           portfolio = await PP.portfolios.update(portfolio.id, { templateKey: selectedKey, sections });
         }
 
-        btn.textContent = 'Publishing...';
-        const published = await PP.portfolios.publish(portfolio.id);
-
-        const url = 'portfolio.html?u=' + encodeURIComponent(published.username);
-        result.innerHTML = 'Published with <strong>' + esc(currentTemplate().name) + '</strong> &middot; '
-          + '<a href="' + url + '" target="_blank">View live page</a>';
-        PP.showToast('Portfolio published', 'success');
+        // A pointer, not a copy of the data — the preview re-reads everything
+        // from the API so it can never show stale content.
+        localStorage.setItem('pp_portfolio_id', portfolio.id);
+        window.location.href = 'preview.html?id=' + encodeURIComponent(portfolio.id);
       } catch (err) {
-        result.textContent = err.message || 'Could not publish';
-        PP.showToast(err.message || 'Could not publish', 'error');
-      } finally {
+        result.textContent = err.message || 'Could not generate the portfolio';
+        PP.showToast(err.message || 'Could not generate the portfolio', 'error');
         btn.disabled = false;
-        btn.textContent = 'Generate & Publish Portfolio';
+        btn.textContent = 'Generate Portfolio \u2192 Preview';
       }
     });
 
-    function updatePreview() {
-      const sections = Array.from(document.querySelectorAll('.section-toggle:checked')).map(c => c.value);
-      const match = PP.getLastMatch();
-      const recIds = match?.recommendedProjects || [];
-      const projects = (profile.projects || []).filter(p => p.includeInPortfolio || recIds.includes(p.id));
-
-      // Preview in the SELECTED template's real colours, so the choice is
-      // visible before publishing instead of every template looking identical.
-      const tpl = currentTemplate();
-      const accent = (tpl && tpl.primaryColor) || 'var(--primary)';
-      const dark = !!(tpl && tpl.darkMode);
-      const surface = dark ? '#0F172A' : 'var(--slate-50)';
-      const ink = dark ? '#E2E8F0' : 'var(--slate-600)';
-
-      document.getElementById('livePreview').innerHTML = `
-        <div style="border:1px solid var(--slate-200);border-radius:0.5rem;padding:1.25rem;background:${surface};color:${ink};">
-          <div style="text-align:center;margin-bottom:1rem;">
-            <div style="width:56px;height:56px;border-radius:50%;background:${accent};color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.25rem;">
-              ${esc((profile.name || 'A').charAt(0))}
-            </div>
-            <div class="font-bold mt-2">${esc(profile.name || 'Your Name')}</div>
-            <div class="text-sm" style="color:${accent};">${esc(profile.title || 'Title')}</div>
-          </div>
-          ${sections.includes('about') ? `<p class="text-sm mb-3" style="color:${ink};">${esc((profile.bio || '').slice(0, 120))}...</p>` : ''}
-          ${sections.includes('skills') ? `
-            <div class="mb-3">
-              <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">SKILLS</div>
-              <div class="flex" style="flex-wrap:wrap;gap:0.25rem;">
-                ${(profile.skills || []).slice(0, 6).map(s => `<span class="tag">${esc(s.name)}</span>`).join('')}
-              </div>
-            </div>` : ''}
-          ${sections.includes('projects') ? `
-            <div>
-              <div class="text-xs font-semibold mb-1" style="color:var(--slate-500);">PROJECTS</div>
-              ${projects.slice(0, 2).map(p => `<div class="text-sm font-medium">${esc(p.title)}</div>`).join('') || '<div class="text-sm" style="color:var(--slate-400);">No projects</div>'}
-            </div>` : ''}
-          <div class="text-xs mt-4" style="color:var(--slate-400);">Template: ${esc(tpl ? tpl.name : 'none')} · Sections: ${esc(sections.join(', '))}</div>
-        </div>
-      `;
+    /** The draft this browser last generated, else the published one, else none. */
+    async function findExistingPortfolio() {
+      const savedId = localStorage.getItem('pp_portfolio_id');
+      if (savedId) {
+        try { return await PP.portfolios.get(savedId); }
+        catch (e) { localStorage.removeItem('pp_portfolio_id'); }
+      }
+      try { return await PP.portfolios.published(); }
+      catch (e) { return null; }
     }
 
-    loadTemplates();
+    /*
+     * Live preview.
+     *
+     * Renders through PPRender — the SAME data builder and template logic the
+     * full preview and the published site use. Previously this page hand-built
+     * its own markup from the localStorage cache, which is why the small
+     * preview and the real portfolio never looked alike.
+     *
+     * Profile and projects are fetched once from the API and reused; only the
+     * template and section toggles change as the user clicks.
+     */
+    let liveProfile = null;
+    let liveProjects = [];
+
+    async function loadPortfolioData() {
+      try {
+        [liveProfile, liveProjects] = await Promise.all([
+          PPApi.profile.get(),
+          PPApi.projects.list()
+        ]);
+      } catch (err) {
+        // Fall back to the cached profile so the builder still renders offline.
+        liveProfile = PP.getProfile();
+        liveProjects = liveProfile.projects || [];
+      }
+    }
+
+    function updatePreview() {
+      if (!liveProfile) return;
+
+      const sections = {};
+      document.querySelectorAll('.section-toggle').forEach(cb => { sections[cb.value] = cb.checked; });
+
+      const data = PPRender.buildData({
+        profile: liveProfile,
+        projects: liveProjects,
+        template: currentTemplate() || {},
+        templateOverride: selectedKey,
+        sectionsOverride: sections
+      });
+
+      const host = document.getElementById('livePreview');
+      PPRender.applyTheme(data, host);
+      host.innerHTML = PPRender.renderCompact(data);
+    }
+
+    (async function init() {
+      await loadPortfolioData();
+      await loadTemplates();
+    })();
   </script>
 </body>
 </html>
