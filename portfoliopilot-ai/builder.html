@@ -71,6 +71,59 @@
               </div>
             </div>
 
+            <!--
+              CUSTOM TEMPLATE PANEL
+
+              Shown only when the "Custom" template is selected. Lets the user
+              build their own palette and import/export it as a small JSON theme
+              file.
+
+              Deliberately NOT an upload of HTML/CSS — see the note rendered at
+              the bottom of this card and the explanation in the handler below.
+            -->
+            <div class="card mb-6" id="customPanel" style="display:none;">
+              <div class="card-header">
+                <h2 class="card-title">Custom colours</h2>
+              </div>
+              <div class="card-body">
+                <div class="grid-2" style="gap:0.75rem;">
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Background</span>
+                    <input type="color" class="custom-color" id="cBackground" value="#ffffff" />
+                  </label>
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Cards</span>
+                    <input type="color" class="custom-color" id="cSurface" value="#f8fafc" />
+                  </label>
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Text</span>
+                    <input type="color" class="custom-color" id="cInk" value="#334155" />
+                  </label>
+                  <label class="form-group" style="margin-bottom:0.5rem;">
+                    <span class="form-label">Accent</span>
+                    <input type="color" class="custom-color" id="cPrimary" value="#4f46e5" />
+                  </label>
+                </div>
+
+                <label class="flex items-center gap-2 mt-2" style="cursor:pointer;">
+                  <input type="checkbox" id="cDark" /> Dark mode defaults
+                </label>
+
+                <div class="flex gap-2 mt-4" style="flex-wrap:wrap;">
+                  <button class="btn btn-sm btn-secondary" id="uploadThemeBtn">Upload theme…</button>
+                  <button class="btn btn-sm btn-ghost" id="downloadThemeBtn">Download theme</button>
+                  <input type="file" id="themeFile" accept="application/json,.json" hidden />
+                </div>
+
+                <p class="form-hint mt-3" style="font-size:0.75rem;">
+                  Themes are small JSON colour files, not HTML or CSS. Uploading a
+                  stylesheet would mean running someone else's code on every visitor's
+                  browser, so it is not accepted.
+                </p>
+                <p class="form-hint" id="themeStatus" style="font-size:0.75rem;"></p>
+              </div>
+            </div>
+
             <button id="generateBtn" class="btn btn-primary btn-lg btn-block">Generate Portfolio &rarr; Preview</button>
             <p class="form-hint mt-2" id="publishResult" style="font-size:0.8125rem;text-align:center;">
               Creates a private draft you can review before publishing.
@@ -153,11 +206,23 @@
           selectedKey = card.dataset.key;
           PP.setSelectedTemplate(selectedKey);
           applyTemplateConstraints();
+          showCustomPanel();
           updatePreview();
         });
       });
 
+      // Restore the saved custom palette so re-opening the builder does not
+      // silently reset the user's colours to the defaults.
+      if (existing) {
+        if (existing.backgroundColor) document.getElementById('cBackground').value = existing.backgroundColor;
+        if (existing.surfaceColor) document.getElementById('cSurface').value = existing.surfaceColor;
+        if (existing.inkColor) document.getElementById('cInk').value = existing.inkColor;
+        if (existing.primaryColor) document.getElementById('cPrimary').value = existing.primaryColor;
+        document.getElementById('cDark').checked = !!existing.darkMode;
+      }
+
       applyTemplateConstraints();
+      showCustomPanel();
       updatePreview();
     }
 
@@ -187,6 +252,110 @@
       cb.addEventListener('change', updatePreview);
     });
 
+    /* ------------------------------------------------------------------
+     * CUSTOM TEMPLATE
+     *
+     * "Upload your own template" is implemented as an importable THEME —
+     * a small JSON file of colours — rather than an HTML/CSS upload.
+     *
+     * That is a deliberate security decision, not a shortcut. Accepting a
+     * stylesheet or markup means executing third-party code inside every
+     * visitor's browser on a page that renders the author's own data: it
+     * defeats the output escaping everywhere else, and `background:
+     * url(...)` alone is enough to exfiltrate. Supporting it safely needs a
+     * CSS parser with an allow-list, a sandboxed origin and admin review —
+     * none of which exist here yet.
+     *
+     * Colours are data, so they can be imported safely: each value is
+     * validated as strict hex on the client, again by Bean Validation, and
+     * again by the collection validator before it can reach a CSS variable.
+     * ------------------------------------------------------------------ */
+    const HEX = /^#[0-9a-fA-F]{6}$/;
+    const customInputs = ['cBackground', 'cSurface', 'cInk', 'cPrimary'];
+
+    function isCustom() { return selectedKey === 'CUSTOM'; }
+
+    function customTheme() {
+      return {
+        background: document.getElementById('cBackground').value,
+        surface: document.getElementById('cSurface').value,
+        ink: document.getElementById('cInk').value,
+        primary: document.getElementById('cPrimary').value,
+        dark: document.getElementById('cDark').checked
+      };
+    }
+
+    function showCustomPanel() {
+      document.getElementById('customPanel').style.display = isCustom() ? '' : 'none';
+    }
+
+    customInputs.forEach(id => {
+      document.getElementById(id).addEventListener('input', updatePreview);
+    });
+    document.getElementById('cDark').addEventListener('change', () => {
+      // Flip the surface defaults so switching mode is one click, not four.
+      const dark = document.getElementById('cDark').checked;
+      document.getElementById('cBackground').value = dark ? '#0b1120' : '#ffffff';
+      document.getElementById('cSurface').value = dark ? '#111c34' : '#f8fafc';
+      document.getElementById('cInk').value = dark ? '#e2e8f0' : '#334155';
+      updatePreview();
+    });
+
+    document.getElementById('uploadThemeBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('themeFile').click();
+    });
+
+    document.getElementById('themeFile').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      const status = document.getElementById('themeStatus');
+      if (!file) return;
+
+      // Bound the read: a theme is a few hundred bytes, so anything large is
+      // either a mistake or an attempt to exhaust memory.
+      if (file.size > 16 * 1024) {
+        status.textContent = 'That file is too large for a theme (max 16 KB).';
+        e.target.value = '';
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(await file.text());
+        const fields = { background: 'cBackground', surface: 'cSurface', ink: 'cInk', primary: 'cPrimary' };
+        let applied = 0;
+
+        for (const [key, id] of Object.entries(fields)) {
+          const value = parsed[key];
+          // Silently ignore anything that is not a hex colour. This is the
+          // gate that stops a crafted file reaching a CSS custom property.
+          if (typeof value === 'string' && HEX.test(value.trim())) {
+            document.getElementById(id).value = value.trim().toLowerCase();
+            applied++;
+          }
+        }
+        if (typeof parsed.dark === 'boolean') { document.getElementById('cDark').checked = parsed.dark; }
+
+        status.textContent = applied
+          ? `Applied ${applied} colour${applied === 1 ? '' : 's'} from ${file.name}.`
+          : 'No valid hex colours found in that file.';
+        updatePreview();
+      } catch (err) {
+        status.textContent = 'That file is not valid JSON.';
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('downloadThemeBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      const blob = new Blob([JSON.stringify(customTheme(), null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'portfoliopilot-theme.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
     /*
      * Generate a TEMPORARY portfolio and open the full preview.
      *
@@ -208,14 +377,24 @@
       result.textContent = '';
 
       try {
+        // Custom colours ride along on the same update, so they persist with
+        // the portfolio and reappear on the preview and the published site.
+        const payload = { templateKey: selectedKey, sections };
+        if (isCustom()) {
+          const theme = customTheme();
+          payload.backgroundColor = theme.background;
+          payload.surfaceColor = theme.surface;
+          payload.inkColor = theme.ink;
+          payload.primaryColor = theme.primary;
+          payload.darkMode = theme.dark;
+        }
+
         let portfolio = await findExistingPortfolio();
 
-        if (portfolio && portfolio.id) {
-          portfolio = await PP.portfolios.update(portfolio.id, { templateKey: selectedKey, sections });
-        } else {
+        if (!portfolio || !portfolio.id) {
           portfolio = await PP.generatePortfolio(selectedKey);
-          portfolio = await PP.portfolios.update(portfolio.id, { templateKey: selectedKey, sections });
         }
+        portfolio = await PP.portfolios.update(portfolio.id, payload);
 
         // A pointer, not a copy of the data — the preview re-reads everything
         // from the API so it can never show stale content.
@@ -273,13 +452,23 @@
       const sections = {};
       document.querySelectorAll('.section-toggle').forEach(cb => { sections[cb.value] = cb.checked; });
 
+      const theme = isCustom() ? customTheme() : null;
+
       const data = PPRender.buildData({
         profile: liveProfile,
         projects: liveProjects,
         template: currentTemplate() || {},
         templateOverride: selectedKey,
-        sectionsOverride: sections
+        sectionsOverride: sections,
+        customTheme: theme
       });
+
+      // The colour pickers feed straight into the same theme object the saved
+      // portfolio uses, so the live preview shows the exact published result.
+      if (theme) {
+        data.theme.primary = theme.primary;
+        data.theme.dark = theme.dark;
+      }
 
       const host = document.getElementById('livePreview');
       PPRender.applyTheme(data, host);

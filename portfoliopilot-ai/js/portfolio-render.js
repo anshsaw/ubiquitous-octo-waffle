@@ -127,7 +127,13 @@
       theme: {
         primary: portfolio.primaryColor || template.primaryColor || '#4F46E5',
         accent: portfolio.accentColor || template.accentColor || '#10B981',
-        dark: (portfolio.darkMode != null ? portfolio.darkMode : template.darkMode) || false
+        dark: (portfolio.darkMode != null ? portfolio.darkMode : template.darkMode) || false,
+        // Custom surface colours, persisted on portfolios.theme. Present only
+        // for the CUSTOM template; built-in templates get their surfaces from
+        // CSS so their designed palette is never overwritten.
+        background: (input.customTheme && input.customTheme.background) || portfolio.backgroundColor || null,
+        surface: (input.customTheme && input.customTheme.surface) || portfolio.surfaceColor || null,
+        ink: (input.customTheme && input.customTheme.ink) || portfolio.inkColor || null
       },
 
       sections: sections,
@@ -503,14 +509,53 @@
     return 'pp-tpl-' + String(key || 'MODERN_DEV').toLowerCase().replace(/_/g, '-');
   }
 
+  /** Accepts only #rgb / #rrggbb, so a stored value cannot inject CSS. */
+  function safeColor(value, fallback) {
+    return (typeof value === 'string' && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim()))
+      ? value.trim()
+      : fallback;
+  }
+
   /**
-   * Pushes the template's colours onto a scope element as CSS variables, so the
-   * stylesheet stays static and the palette is data-driven.
+   * Pushes the template's palette onto a scope element as CSS variables.
+   *
+   * IMPORTANT: this now sets the SURFACE variables too, not just the accents.
+   * Previously it set only --pp-primary/--pp-accent while the stylesheet
+   * hardcoded `background: #fff`, so every light template rendered on an
+   * identical white page and switching template looked like it did nothing.
+   *
+   * A template's own colours come from CSS (`.pp-tpl-*` blocks). This function
+   * overrides them ONLY when the portfolio carries explicit custom colours —
+   * which is how the builder's Custom panel works without uploading any CSS.
    */
   function applyTheme(data, element) {
     const target = element || document.documentElement;
-    target.style.setProperty('--pp-primary', data.theme.primary);
-    target.style.setProperty('--pp-accent', data.theme.accent);
+    const theme = data.theme || {};
+
+    target.style.setProperty('--pp-primary', safeColor(theme.primary, '#4F46E5'));
+    target.style.setProperty('--pp-accent', safeColor(theme.accent, '#10B981'));
+
+    // Custom surfaces: only applied for the CUSTOM template, so a built-in
+    // template's designed palette is never silently overwritten.
+    const custom = data.templateKey === 'CUSTOM';
+    const props = ['--pp-bg', '--pp-surface', '--pp-ink', '--pp-ink-muted', '--pp-border'];
+
+    if (custom) {
+      const dark = !!theme.dark;
+      const bg = safeColor(theme.background, dark ? '#0B1120' : '#FFFFFF');
+      const surface = safeColor(theme.surface, dark ? '#111C34' : '#F8FAFC');
+      const ink = safeColor(theme.ink, dark ? '#E2E8F0' : '#334155');
+
+      target.style.setProperty('--pp-bg', bg);
+      target.style.setProperty('--pp-surface', surface);
+      target.style.setProperty('--pp-ink', ink);
+      target.style.setProperty('--pp-ink-muted', dark ? '#94A3B8' : '#64748B');
+      target.style.setProperty('--pp-border', dark ? '#1E293B' : '#E2E8F0');
+    } else {
+      // Clear any leftovers from a previous Custom render, otherwise switching
+      // back to a built-in template would keep the custom background.
+      props.forEach(p => target.style.removeProperty(p));
+    }
   }
 
   /** Smooth in-page scrolling for the rendered nav. */

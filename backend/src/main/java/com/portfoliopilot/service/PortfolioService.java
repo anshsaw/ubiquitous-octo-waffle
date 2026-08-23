@@ -190,11 +190,7 @@ public class PortfolioService {
             // request. Without this the key changed but the theme stayed on the
             // PREVIOUS template, so the public page rendered the new layout in
             // the old palette - the template appeared not to apply.
-            boolean explicitTheme = request.primaryColor() != null
-                    || request.accentColor() != null
-                    || request.darkMode() != null;
-
-            if (templateChanged && !explicitTheme) {
+            if (templateChanged && !request.hasExplicitTheme()) {
                 portfolio.setTheme(themeFrom(template));
             }
         }
@@ -219,7 +215,7 @@ public class PortfolioService {
         if (request.summaryOverride() != null) {
             portfolio.setSummaryOverride(blankToNull(request.summaryOverride()));
         }
-        if (request.primaryColor() != null || request.accentColor() != null || request.darkMode() != null) {
+        if (request.hasExplicitTheme()) {
             portfolio.setTheme(mergeTheme(portfolio.getTheme(), request));
         }
 
@@ -457,6 +453,7 @@ public class PortfolioService {
                 .build();
     }
 
+    /** Applies only the colours the request actually supplied; the rest are kept. */
     private ThemeSettings mergeTheme(ThemeSettings current, PortfolioRequest request) {
         return ThemeSettings.builder()
                 .primaryColor(request.primaryColor() != null ? request.primaryColor()
@@ -465,6 +462,12 @@ public class PortfolioService {
                         : current == null ? null : current.getAccentColor())
                 .darkMode(request.darkMode() != null ? request.darkMode()
                         : current == null ? null : current.getDarkMode())
+                .backgroundColor(request.backgroundColor() != null ? request.backgroundColor()
+                        : current == null ? null : current.getBackgroundColor())
+                .surfaceColor(request.surfaceColor() != null ? request.surfaceColor()
+                        : current == null ? null : current.getSurfaceColor())
+                .inkColor(request.inkColor() != null ? request.inkColor()
+                        : current == null ? null : current.getInkColor())
                 .build();
     }
 

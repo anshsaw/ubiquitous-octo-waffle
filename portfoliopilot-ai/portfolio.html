@@ -94,7 +94,12 @@
           sectionOrder: payload.sectionOrder,
           primaryColor: payload.theme && payload.theme.primaryColor,
           accentColor: payload.theme && payload.theme.accentColor,
-          darkMode: payload.theme && payload.theme.darkMode
+          darkMode: payload.theme && payload.theme.darkMode,
+          // Custom-template surfaces, so a published Custom portfolio keeps the
+          // palette the author chose in the builder.
+          backgroundColor: payload.theme && payload.theme.backgroundColor,
+          surfaceColor: payload.theme && payload.theme.surfaceColor,
+          inkColor: payload.theme && payload.theme.inkColor
         },
         template: { name: payload.templateKey }
       });

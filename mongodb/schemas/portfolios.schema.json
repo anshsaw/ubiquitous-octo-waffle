@@ -96,11 +96,26 @@
         "theme": {
           "bsonType": "object",
           "additionalProperties": false,
-          "description": "Per-portfolio visual overrides on top of the template defaults.",
+          "description": "Per-portfolio visual overrides on top of the template defaults. The surface colours below back the builder's Custom template, which is how a user gets their own palette WITHOUT the platform ever accepting uploaded CSS.",
           "properties": {
             "primaryColor": { "bsonType": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
             "accentColor": { "bsonType": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
-            "darkMode": { "bsonType": ["bool", "null"] }
+            "darkMode": { "bsonType": ["bool", "null"] },
+            "backgroundColor": {
+              "bsonType": ["string", "null"],
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Page background. The hex pattern is the sanitisation boundary - an arbitrary string here could otherwise become a CSS injection."
+            },
+            "surfaceColor": {
+              "bsonType": ["string", "null"],
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Cards, chips and nav."
+            },
+            "inkColor": {
+              "bsonType": ["string", "null"],
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Body text."
+            }
           }
         },
 

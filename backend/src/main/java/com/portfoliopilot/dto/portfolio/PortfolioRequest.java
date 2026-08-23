@@ -54,6 +54,29 @@ public record PortfolioRequest(
         @Pattern(regexp = "^#[0-9a-fA-F]{6}$", message = "Must be a 6-digit hex colour")
         String accentColor,
 
-        Boolean darkMode
+        Boolean darkMode,
+
+        /*
+         * Custom surface colours. Validated as strict hex here AND by the
+         * collection validator, because they end up in a CSS custom property -
+         * an unvalidated string there is a style-injection vector.
+         */
+        @Pattern(regexp = "^#[0-9a-fA-F]{6}$", message = "Must be a 6-digit hex colour")
+        @Schema(description = "Page background. Used by the Custom template.", example = "#0B1120")
+        String backgroundColor,
+
+        @Pattern(regexp = "^#[0-9a-fA-F]{6}$", message = "Must be a 6-digit hex colour")
+        @Schema(description = "Cards and chips. Used by the Custom template.")
+        String surfaceColor,
+
+        @Pattern(regexp = "^#[0-9a-fA-F]{6}$", message = "Must be a 6-digit hex colour")
+        @Schema(description = "Body text. Used by the Custom template.")
+        String inkColor
 ) {
+
+    /** True when the request carries any explicit colour choice. */
+    public boolean hasExplicitTheme() {
+        return primaryColor != null || accentColor != null || darkMode != null
+                || backgroundColor != null || surfaceColor != null || inkColor != null;
+    }
 }

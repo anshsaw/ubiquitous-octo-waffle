@@ -110,10 +110,15 @@ public class PublicPortfolioService {
 
     private PublicPortfolioResponse.Theme theme(ThemeSettings theme) {
         if (theme == null) {
-            return new PublicPortfolioResponse.Theme(null, null, null);
+            return new PublicPortfolioResponse.Theme(null, null, null, null, null, null);
         }
         return new PublicPortfolioResponse.Theme(
-                theme.getPrimaryColor(), theme.getAccentColor(), theme.getDarkMode());
+                theme.getPrimaryColor(),
+                theme.getAccentColor(),
+                theme.getDarkMode(),
+                theme.getBackgroundColor(),
+                theme.getSurfaceColor(),
+                theme.getInkColor());
     }
 
     /**

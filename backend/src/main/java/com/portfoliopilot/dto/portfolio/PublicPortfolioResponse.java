@@ -35,7 +35,22 @@ public record PublicPortfolioResponse(
         Instant publishedAt
 ) {
 
-    public record Theme(String primaryColor, String accentColor, Boolean darkMode) {
+    /**
+     * Palette for the published page.
+     *
+     * <p>The surface colours are included so a portfolio built with the Custom
+     * template looks the same live as it did in the preview. Every value is
+     * constrained to a 6-digit hex by the request DTO and again by the
+     * collection validator, so none of them can carry CSS.
+     */
+    public record Theme(
+            String primaryColor,
+            String accentColor,
+            Boolean darkMode,
+            String backgroundColor,
+            String surfaceColor,
+            String inkColor
+    ) {
     }
 
     /**
