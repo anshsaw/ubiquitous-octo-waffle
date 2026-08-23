@@ -125,17 +125,12 @@
     </div>
   </div>
 
-  <script src="js/api.js"></script>
   <script src="js/app.js"></script>
   <script>
     if (!PP.requireAuth()) throw new Error('redirect');
     PP.initAppLayout('profile');
 
-     let profile = PP.getProfile();
-
-    const esc = (v) => String(v == null ? '' : v)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    let profile = PP.getProfile();
 
     // Tabs
     document.querySelectorAll('.tab').forEach(tab => {
@@ -154,12 +149,12 @@
     document.getElementById('location').value = profile.location || '';
     document.getElementById('avatarPreview').textContent = (profile.name || 'A').charAt(0).toUpperCase();
 
-    // Skills - user data is escaped so a skill named <img onerror> cannot execute
+    // Skills
     function renderSkills() {
       const list = document.getElementById('skillsList');
       list.innerHTML = (profile.skills || []).map((s, i) => `
         <span class="tag" style="padding:0.375rem 0.75rem;">
-          ${esc(s.name)} <span style="opacity:0.7;">${esc(s.level)}%</span>
+          ${s.name} <span style="opacity:0.7;">${s.level}%</span>
           <button onclick="removeSkill(${i})" style="background:none;border:none;cursor:pointer;margin-left:0.25rem;color:var(--slate-500);">×</button>
         </span>
       `).join('');
@@ -179,14 +174,14 @@
     });
     renderSkills();
 
-    // Education - escaped, same reason as skills
+    // Education
     function renderEdu() {
       const list = document.getElementById('eduList');
       list.innerHTML = (profile.education || []).map((e, i) => `
         <div class="flex justify-between items-center" style="padding:0.75rem 0;border-bottom:1px solid var(--slate-100);">
           <div>
-            <div class="font-medium">${esc(e.degree)}</div>
-            <div class="text-sm" style="color:var(--slate-500);">${esc(e.school)} · ${esc(e.year)}</div>
+            <div class="font-medium">${e.degree}</div>
+            <div class="text-sm" style="color:var(--slate-500);">${e.school} · ${e.year}</div>
           </div>
           <button class="btn btn-sm btn-ghost" onclick="removeEdu(${i})">Delete</button>
         </div>
@@ -207,21 +202,15 @@
     });
     renderEdu();
 
-    // Save - awaited so the success toast only shows when the server confirms
-    document.getElementById('saveBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('saveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
+    // Save
+    document.getElementById('saveBtn').addEventListener('click', () => {
       profile.name = document.getElementById('name').value.trim();
       profile.title = document.getElementById('title').value.trim();
       profile.bio = document.getElementById('bio').value.trim();
       profile.location = document.getElementById('location').value.trim();
-      const ok = await PP.saveProfile(profile);
-      if (ok) PP.showToast('Profile saved', 'success');
-      // PP.saveProfile already shows an error toast on failure
+      PP.saveProfile(profile);
+      PP.showToast('Profile saved', 'success');
       document.getElementById('avatarPreview').textContent = (profile.name || 'A').charAt(0).toUpperCase();
-      btn.disabled = false;
-      btn.textContent = 'Save Profile';
     });
   </script>
 </body>

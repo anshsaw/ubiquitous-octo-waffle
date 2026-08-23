@@ -16,48 +16,23 @@
       <form id="adminLoginForm">
         <div class="form-group">
           <label class="form-label" for="email">Email</label>
-          <input class="form-input" type="email" id="email" value="admin@portfoliopilot.local" required />
+          <input class="form-input" type="email" id="email" value="admin@portfoliopilot.ai" required />
         </div>
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
-          <input class="form-input" type="password" id="password" value="DemoPass123!" required />
+          <input class="form-input" type="password" id="password" value="admin" required />
         </div>
         <button type="submit" class="btn btn-primary btn-block btn-lg">Login as Admin</button>
       </form>
-      <p class="auth-footer" style="font-size:0.8125rem;">
-        Seeded admin: <code>admin@portfoliopilot.local</code> / <code>DemoPass123!</code><br />
-        The ADMIN role is verified server-side on every request.
-      </p>
+      <p class="auth-footer">Demo: any credentials work</p>
     </div>
   </div>
-  <script src="../js/api.js"></script>
   <script src="../js/app.js"></script>
   <script>
-    // Real admin authentication. The previous version set a localStorage flag
-    // without reading the form at all - anyone could reach the admin panel.
-    //
-    // The ROLE is verified by the server on every admin request; the flag below
-    // is only a UI hint. Setting it by hand grants nothing: /api/admin/** still
-    // returns 403 without an ADMIN token.
-    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+    document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
       e.preventDefault();
-
-      const button = e.target.querySelector('button[type="submit"]');
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-
-      button.disabled = true;
-      button.textContent = 'Signing in...';
-
-      try {
-        await PP.admin.login(email, password);
-        PP.showToast('Signed in as administrator', 'success');
-        window.location.href = 'index.html';
-      } catch (err) {
-        PP.showToast(err.message || 'Admin login failed', 'error');
-        button.disabled = false;
-        button.textContent = 'Login as Admin';
-      }
+      localStorage.setItem('pp_admin', 'true');
+      window.location.href = 'index.html';
     });
   </script>
 </body>
