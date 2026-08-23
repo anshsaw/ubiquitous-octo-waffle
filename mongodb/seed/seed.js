@@ -597,10 +597,20 @@ async function seed(db) {
   console.log(`    skillDictionary    ${dictCount}`);
   console.log(`    adminLogs          ${logs.length}`);
 
-  console.log('\n  demo credentials (development only):');
-  console.log(`    admin  admin@portfoliopilot.local / ${cfg.seedPassword}`);
-  console.log(`    user   demo@portfoliopilot.local  / ${cfg.seedPassword}`);
-  console.log('    public portfolio: /portfolio/demo-student');
+  console.log('\n  ------------------------------------------------------------------');
+  console.log('  LOGIN CREDENTIALS (development only) - password is the same for all');
+  console.log('  ------------------------------------------------------------------');
+  console.log(`    password: ${cfg.seedPassword}\n`);
+  console.log('    ADMIN  admin@portfoliopilot.local   -> admin panel');
+  console.log('    USER   demo@portfoliopilot.local    -> fully populated showcase');
+  console.log('    USER   aarav@portfoliopilot.local   -> frontend');
+  console.log('    USER   priya@portfoliopilot.local   -> backend / data');
+  console.log('    USER   neha@portfoliopilot.local    -> frontend / design');
+  console.log('    USER   arjun@portfoliopilot.local   -> cloud / devops');
+  console.log('\n    rohan@portfoliopilot.local is seeded SUSPENDED on purpose.');
+  console.log('    It will be REJECTED at login - that is correct behaviour.');
+  console.log('\n    public portfolios: /portfolio/demo-student, /portfolio/neha-iyer');
+  console.log('  ------------------------------------------------------------------');
 }
 
 if (require.main === module) {
