@@ -1,6 +1,7 @@
 package com.portfoliopilot;
 
 import com.portfoliopilot.config.CorsProperties;
+import com.portfoliopilot.config.JobsProperties;
 import com.portfoliopilot.config.JwtProperties;
 import com.portfoliopilot.config.MatchingProperties;
 import org.springframework.boot.SpringApplication;
@@ -30,7 +31,8 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  */
 @SpringBootApplication
 @EnableMongoRepositories(basePackages = "com.portfoliopilot.repository")
-@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, MatchingProperties.class})
+@EnableConfigurationProperties({
+        JwtProperties.class, CorsProperties.class, MatchingProperties.class, JobsProperties.class})
 public class PortfolioPilotApplication {
 
     public static void main(String[] args) {

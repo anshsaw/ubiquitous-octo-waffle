@@ -47,6 +47,27 @@ app:
     # vanilla frontend (Live Server 5500, `npx serve` 3000, Vite 5173).
     allowed-origins: ${FRONTEND_URL:http://localhost:5173,http://localhost:3000,http://localhost:5500,http://127.0.0.1:5500,http://localhost:8000}
 
+  jobs:
+    # Remotive: public, free, no credentials. Real listings, so the analyzer
+    # works out of the box rather than needing a fake-data mode.
+    remotive-enabled: ${REMOTIVE_ENABLED:true}
+
+    # Adzuna: optional, adds location-based and non-remote roles.
+    # Free credentials at https://developer.adzuna.com
+    adzuna-app-id: ${ADZUNA_APP_ID:}
+    adzuna-app-key: ${ADZUNA_APP_KEY:}
+    adzuna-country: ${ADZUNA_COUNTRY:gb}
+
+    # LinkedIn: job SEARCH is not part of the public LinkedIn API. It requires a
+    # signed Talent Solutions partnership, so this stays off and the provider
+    # reports itself unavailable rather than the app pretending otherwise.
+    linkedin-client-id: ${LINKEDIN_CLIENT_ID:}
+    linkedin-client-secret: ${LINKEDIN_CLIENT_SECRET:}
+    linkedin-partner-enabled: ${LINKEDIN_PARTNER_ENABLED:false}
+
+    timeout-ms: ${JOBS_TIMEOUT_MS:12000}
+    max-per-provider: ${JOBS_MAX_PER_PROVIDER:50}
+
   matching:
     # Weights from the spec. Must sum to 1.0 - validated at startup.
     skills-weight: ${MATCH_SKILLS_WEIGHT:0.45}
